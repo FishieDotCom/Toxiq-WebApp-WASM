@@ -1,0 +1,188 @@
+﻿@* Toxiq.WebApp.Client/Pages/Login.razor *@
+@page "/login"
+@using Toxiq.WebApp.Client.Services.Authentication
+@using Toxiq.WebApp.Client.Components
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Login - Toxiq</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="logo-container">
+            <Logo Width="256" Height="256" Color="var(--white)" />
+        </div>
+
+        <h1 class="login-title">Welcome to Toxiq</h1>
+        <p class="login-subtitle">Where Cool Kids Hangout</p>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="error-message">
+                @errorMessage
+            </div>
+        }
+
+        <div class="telegram-instructions">
+            <div class="instruction-step">
+                <span class="step-number">1</span>
+                <div class="step-content">
+                    <p class="step-title">Open Telegram and message @@Toxiq_bot</p>
+                    <button class="btn btn-telegram" @onclick="OpenTelegram">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                        </svg>
+                        Open @@Toxiq_bot
+                    </button>
+                </div>
+            </div>
+
+            <div class="instruction-step">
+                <span class="step-number">2</span>
+                <div class="step-content">
+                    <p class="step-title">Send /start to get your login token</p>
+                    <p class="step-description">The bot will respond with a 10-character token</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <input type="text"
+                   @bind="loginToken"
+                   @onkeypress="HandleTokenKeyPress"
+                   @oninput="OnTokenInput"
+                   placeholder="Enter your 10-character token"
+                   class="text-input"
+                   disabled="@isLoading"
+                   maxlength="10" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(loginToken) && loginToken.Length < 10)
+        {
+            <div class="token-help">
+                Token should be 10 characters long
+            </div>
+        }
+
+        <div class="login-footer">
+            <p class="footer-text">By signing in, you agree to our Terms of Service and Privacy Policy.</p>
+            <button class="btn-link" @onclick="GoHome">
+                Continue as guest
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .token-help {
+        color: var(--gray-300);
+        font-size: 12px;
+        text-align: center;
+        margin-top: 8px;
+    }
+</style>
+
+@code {
+    private string loginToken = "";
+    private string errorMessage = "";
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if already authenticated
+        if (await AuthService.IsAuthenticatedAsync())
+        {
+            var returnUrl = GetReturnUrl();
+            Navigation.NavigateTo(returnUrl);
+            return;
+        }
+    }
+
+    private string GetReturnUrl()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        return query["returnUrl"] ?? "/";
+    }
+
+    private void OpenTelegram()
+    {
+        // Open Telegram bot in new tab - matches mobile behavior
+        JSRuntime.InvokeVoidAsync("open", "https://t.me/Toxiq_bot?start=OTP", "_blank");
+    }
+
+    private async Task OnTokenInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        loginToken = value.ToUpperInvariant();
+        errorMessage = "";
+
+        // Auto-submit when token reaches 10 characters (like mobile app)
+        if (loginToken.Length == 10 && !isLoading)
+        {
+            await AttemptLogin();
+        }
+    }
+
+    private async Task AttemptLogin()
+    {
+        if (string.IsNullOrWhiteSpace(loginToken) || loginToken.Length != 10)
+        {
+            errorMessage = "Please enter a valid 10-character token";
+            return;
+        }
+
+        isLoading = true;
+        errorMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            // Use the AuthenticationService which will call ManualAuthProvider
+            var result = await AuthService.LoginAsync(loginToken.Trim());
+
+            if (result.IsSuccess)
+            {
+                // Handle new user flow like mobile app
+                if (result.RequiresAdditionalSetup)
+                {
+                    // Navigate to username setup or profile setup
+                    Navigation.NavigateTo("/setup");
+                }
+                else
+                {
+                    // Redirect to return URL or home
+                    var returnUrl = GetReturnUrl();
+                    Navigation.NavigateTo(returnUrl);
+                }
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage ?? "Invalid login token. Please check your token and try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Login failed. Please check your token and try again.";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleTokenKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !isLoading && !string.IsNullOrEmpty(loginToken) && loginToken.Length == 10)
+        {
+            await AttemptLogin();
+        }
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

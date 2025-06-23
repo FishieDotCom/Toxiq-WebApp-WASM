@@ -27,11 +27,15 @@
 		<BlazorWebAssemblyLazyLoad>true</BlazorWebAssemblyLazyLoad>
 	</PropertyGroup>
 
-	<ItemGroup>
+	<!--<ItemGroup>
 		<BlazorWebAssemblyLazyLoad Include="Toxiq.WebApp.Client.Modules.Profile.dll" />
 		<BlazorWebAssemblyLazyLoad Include="Toxiq.WebApp.Client.Modules.PostCreation.dll" />
 		<BlazorWebAssemblyLazyLoad Include="Toxiq.WebApp.Client.Modules.Comments.dll" />
 		<BlazorWebAssemblyLazyLoad Include="Toxiq.WebApp.Client.Modules.Notes.dll" />
 		<BlazorWebAssemblyLazyLoad Include="Toxiq.WebApp.Client.Modules.Settings.dll" />
+	</ItemGroup>-->
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\Toxiq.Mobile\Toxiq.Mobile.Dto\Toxiq.Mobile.Dto.csproj" />
 	</ItemGroup>
 </Project>

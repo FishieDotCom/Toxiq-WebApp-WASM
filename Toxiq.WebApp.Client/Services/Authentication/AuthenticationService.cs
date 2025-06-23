@@ -25,6 +25,8 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         private readonly ITokenStorage _tokenStorage;
         private readonly ICacheService _cache;
         private readonly ILogger<AuthenticationService> _logger;
+        private readonly IApiService _apiService; // Add this
+
 
         private UserProfile _currentUser;
         private bool? _isAuthenticated;
@@ -35,12 +37,14 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             IEnumerable<IAuthenticationProvider> providers,
             ITokenStorage tokenStorage,
             ICacheService cache,
-            ILogger<AuthenticationService> logger)
+            ILogger<AuthenticationService> logger,
+            IApiService apiService)
         {
             _providers = providers;
             _tokenStorage = tokenStorage;
             _cache = cache;
             _logger = logger;
+            _apiService = apiService;
         }
 
         public async ValueTask<bool> IsAuthenticatedAsync()
@@ -175,9 +179,8 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             {
                 _currentUser = await _cache.GetOrSetAsync("current_user", async () =>
                 {
-                    // This would need to be implemented in your API service
-                    // For now, return a basic profile
-                    return new UserProfile { UserName = "User", Name = "Current User" };
+                    // Use the API service to get the current user
+                    return await _apiService.UserService.GetMe();
                 }, TimeSpan.FromMinutes(30));
 
                 return _currentUser;

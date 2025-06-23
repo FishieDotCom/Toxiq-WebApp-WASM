@@ -1,0 +1,79 @@
+﻿@page "/setup"
+@using Toxiq.WebApp.Client.Services.Authentication
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Setup - Toxiq</PageTitle>
+
+<div class="setup-container">
+    <div class="setup-card">
+        <h1 class="setup-title">Welcome to Toxiq!</h1>
+        <p class="setup-subtitle">Let's set up your profile</p>
+
+        <!-- This would be implemented later for username/profile setup -->
+        <div class="setup-placeholder">
+            <p>Profile setup will be implemented here</p>
+            <button class="btn btn-primary" @onclick="ContinueToHome">
+                Continue to Home
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .setup-container {
+        min-height: 100vh;
+        background-color: var(--off-black);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .setup-card {
+        max-width: 400px;
+        width: 100%;
+        text-align: center;
+    }
+
+    .setup-title {
+        color: var(--white);
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0 0 12px 0;
+    }
+
+    .setup-subtitle {
+        color: var(--gray-300);
+        font-size: 16px;
+        margin: 0 0 40px 0;
+    }
+
+    .setup-placeholder {
+        background-color: var(--gray-950);
+        border: 1px solid var(--transparent-white);
+        border-radius: 12px;
+        padding: 40px 20px;
+    }
+
+        .setup-placeholder p {
+            color: var(--gray-300);
+            margin: 0 0 20px 0;
+        }
+</style>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        // Ensure user is authenticated
+        if (!await AuthService.IsAuthenticatedAsync())
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+
+    private void ContinueToHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+}

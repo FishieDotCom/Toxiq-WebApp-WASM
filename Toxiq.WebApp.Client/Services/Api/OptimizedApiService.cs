@@ -1,6 +1,9 @@
-﻿using System.Collections.Concurrent;
+﻿// Toxiq.WebApp.Client/Services/Api/OptimizedApiService.cs
+using System.Collections.Concurrent;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Toxiq.Mobile.Dto;
 using Toxiq.WebApp.Client.Services.Authentication;
 using Toxiq.WebApp.Client.Services.Caching;
 
@@ -13,6 +16,14 @@ namespace Toxiq.WebApp.Client.Services.Api
         private readonly ITokenStorage _tokenStorage;
         private readonly ILogger<OptimizedApiService> _logger;
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _requestSemaphores = new();
+
+        // Service implementations
+        public IAuthService AuthService { get; }
+        public IUserService UserService { get; }
+        public IPostService PostService { get; }
+        public ICommentService CommentService { get; }
+        public INotesService NotesService { get; }
+        public IColorService ColorService { get; }
 
         public OptimizedApiService(
             HttpClient httpClient,
@@ -28,27 +39,19 @@ namespace Toxiq.WebApp.Client.Services.Api
             // Configure HTTP client
             _httpClient.BaseAddress = new Uri("https://toxiq.xyz/api/");
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Toxiq-WebApp/1.0");
+
+            // Initialize service implementations
+            AuthService = new AuthServiceImpl(this);
+            UserService = new UserServiceImpl(this);
+            PostService = new PostServiceImpl(this);
+            CommentService = new CommentServiceImpl(this);
+            NotesService = new NotesServiceImpl(this);
+            ColorService = new ColorServiceImpl(this);
         }
 
-        public async ValueTask<T> GetCachedAsync<T>(string endpoint, TimeSpan maxAge)
+        // Internal methods for service implementations
+        internal async ValueTask<T> GetAsync<T>(string endpoint)
         {
-            var cacheKey = $"api_{endpoint}";
-
-            return await _cache.GetOrSetAsync(cacheKey, async () =>
-            {
-                await EnsureAuthenticatedAsync();
-
-                using var response = await _httpClient.GetAsync(endpoint);
-                response.EnsureSuccessStatusCode();
-
-                var json = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<T>(json, JsonOptions);
-            }, maxAge);
-        }
-
-        public async ValueTask<T> GetAsync<T>(string endpoint)
-        {
-            // Request deduplication
             var semaphore = _requestSemaphores.GetOrAdd(endpoint, _ => new SemaphoreSlim(1, 1));
 
             await semaphore.WaitAsync();
@@ -68,7 +71,17 @@ namespace Toxiq.WebApp.Client.Services.Api
             }
         }
 
-        public async ValueTask<T> PostAsync<T>(string endpoint, object data)
+        internal async ValueTask<T> GetCachedAsync<T>(string endpoint, TimeSpan maxAge)
+        {
+            var cacheKey = $"api_{endpoint}";
+
+            return await _cache.GetOrSetAsync(cacheKey, async () =>
+            {
+                return await GetAsync<T>(endpoint);
+            }, maxAge);
+        }
+
+        internal async ValueTask<T> PostAsync<T>(string endpoint, object data)
         {
             await EnsureAuthenticatedAsync();
 
@@ -82,13 +95,23 @@ namespace Toxiq.WebApp.Client.Services.Api
             return JsonSerializer.Deserialize<T>(responseJson, JsonOptions);
         }
 
+        internal async ValueTask<HttpResponseMessage> PostRawAsync(string endpoint, object data)
+        {
+            await EnsureAuthenticatedAsync();
+
+            var json = JsonSerializer.Serialize(data, JsonOptions);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            return await _httpClient.PostAsync(endpoint, content);
+        }
+
         private async ValueTask EnsureAuthenticatedAsync()
         {
             var token = await _tokenStorage.GetTokenAsync();
             if (!string.IsNullOrEmpty(token))
             {
                 _httpClient.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                    new AuthenticationHeaderValue("Bearer", token);
             }
         }
 
@@ -97,13 +120,161 @@ namespace Toxiq.WebApp.Client.Services.Api
             PropertyNameCaseInsensitive = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
+    }
 
-        // Implement specific service interfaces
-        public IAuthService AuthService { get; }
-        public IUserService UserService { get; }
-        public IPostService PostService { get; }
-        public ICommentService CommentService { get; }
-        public INotesService NotesService { get; }
-        public IColorService ColorService { get; }
+    // Service implementations
+    internal class AuthServiceImpl : IAuthService
+    {
+        private readonly OptimizedApiService _api;
+
+        public AuthServiceImpl(OptimizedApiService api) => _api = api;
+
+        public async ValueTask<bool> CheckHeartBeat()
+        {
+            try
+            {
+                await _api.GetAsync<object>("Auth/Ping");
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public ValueTask<LoginResponse> Login(LoginDto loginDto) =>
+            _api.PostAsync<LoginResponse>("Auth/DebugLogin", loginDto);
+
+    }
+
+    internal class UserServiceImpl : IUserService
+    {
+        private readonly OptimizedApiService _api;
+
+        public UserServiceImpl(OptimizedApiService api) => _api = api;
+
+        public ValueTask<UserProfile> GetMe(bool force = false) =>
+            force ? _api.GetAsync<UserProfile>("User/GetMe")
+                  : _api.GetCachedAsync<UserProfile>("User/GetMe", TimeSpan.FromMinutes(30));
+
+        public ValueTask<UserProfile> GetUser(string username) =>
+            _api.GetCachedAsync<UserProfile>($"User/GetUser/{username}", TimeSpan.FromMinutes(15));
+
+        public async ValueTask<bool> CheckUsername(string username)
+        {
+            try
+            {
+                await _api.GetAsync<object>($"User/CheckUsername?username={username}");
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async ValueTask<bool> ChangeUsername(string username)
+        {
+            try
+            {
+                await _api.GetAsync<object>($"User/ChangeUsername?username={username}");
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async ValueTask EditProfile(UserProfile profile) =>
+          await _api.PostAsync<object>("User/EditUserProfile", profile);
+
+        public ValueTask<List<BasePost>> GetUserPosts(string username, bool includeReplies = false) =>
+            _api.GetCachedAsync<List<BasePost>>($"User/GetUserPosts/{username}", TimeSpan.FromMinutes(5));
+    }
+
+    internal class PostServiceImpl : IPostService
+    {
+        private readonly OptimizedApiService _api;
+
+        public PostServiceImpl(OptimizedApiService api) => _api = api;
+
+        public ValueTask<SearchResultDto<BasePost>> GetFeed(GetPostDto filter) =>
+            _api.PostAsync<SearchResultDto<BasePost>>("Post/Feed", filter);
+
+        public ValueTask<BasePost> GetPost(Guid postId) =>
+            _api.GetCachedAsync<BasePost>($"Post/GetPost/{postId}", TimeSpan.FromMinutes(10));
+
+        public ValueTask<BasePost> GetPrompt(Guid postId) =>
+            _api.GetAsync<BasePost>($"Post/GetPrompt/{postId}");
+
+        public ValueTask<SearchResultDto<BasePost>> GetPostsByPrompt(Guid promptId, int page, int pageSize) =>
+            _api.GetAsync<SearchResultDto<BasePost>>($"Post/GetPostsByPrompt/{promptId}?page={page}&pageSize={pageSize}");
+
+        public async ValueTask Publish(BasePost post) =>
+          await _api.PostAsync<object>("Post/Publish", post);
+
+        public async ValueTask Upvote(Guid id) =>
+           await _api.GetAsync<object>($"Post/Upvote/{id}");
+
+        public async ValueTask Downvote(Guid id) =>
+           await _api.GetAsync<object>($"Post/Downvote/{id}");
+    }
+
+    internal class CommentServiceImpl : ICommentService
+    {
+        private readonly OptimizedApiService _api;
+
+        public CommentServiceImpl(OptimizedApiService api) => _api = api;
+
+        public ValueTask<SearchResultDto<Comment>> GetPostComments(GetCommentDto filter) =>
+            _api.PostAsync<SearchResultDto<Comment>>("Comment/GetComments", filter);
+
+        public ValueTask<Comment> CommentOnPost(Comment comment) =>
+            _api.PostAsync<Comment>("Comment/MakeComment", comment);
+
+        public ValueTask<Comment> GetComment(Guid commentId) =>
+            _api.GetAsync<Comment>($"Comment/GetComment/{commentId}");
+
+        public ValueTask<StickerPack> GetSticker() =>
+            _api.GetCachedAsync<StickerPack>("Comment/GetSticker", TimeSpan.FromHours(1));
+
+        public async ValueTask Upvote(Guid id) =>
+           await _api.GetAsync<object>($"Comment/Upvote/{id}");
+
+        public async ValueTask Downvote(Guid id) =>
+           await _api.GetAsync<object>($"Comment/Downvote/{id}");
+    }
+
+    internal class NotesServiceImpl : INotesService
+    {
+        private readonly OptimizedApiService _api;
+
+        public NotesServiceImpl(OptimizedApiService api) => _api = api;
+
+        public ValueTask<List<NoteDto>> GetMyNotes() =>
+            _api.GetAsync<List<NoteDto>>("Notes/GetMyNotes");
+
+        public ValueTask<NoteDto> GetNote(Guid id) =>
+            _api.GetAsync<NoteDto>($"Notes/GetNote/{id}");
+
+        public ValueTask<HttpResponseMessage> SendNote(NoteDto input) =>
+            _api.PostRawAsync("Notes/SendNote", input);
+
+        public async ValueTask RespondToNote(BasePost input) =>
+          await _api.PostAsync<object>("Notes/RespondToNote", input);
+    }
+
+    internal class ColorServiceImpl : IColorService
+    {
+        private readonly OptimizedApiService _api;
+
+        public ColorServiceImpl(OptimizedApiService api) => _api = api;
+
+        public ValueTask<List<ColorListDto>> GetColors() =>
+            _api.GetCachedAsync<List<ColorListDto>>("Color/DebugColorList", TimeSpan.FromDays(1));
+
+        public async ValueTask SuggestColor(string hex) =>
+           await _api.GetAsync<object>($"Color/SuggestColor/{hex}");
     }
 }

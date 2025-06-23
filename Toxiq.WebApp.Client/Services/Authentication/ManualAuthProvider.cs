@@ -24,13 +24,14 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             return ValueTask.FromResult(false); // Manual login always requires user input
         }
 
+        // Toxiq.WebApp.Client/Services/Authentication/ManualAuthProvider.cs
         public async ValueTask<AuthenticationResult> LoginAsync(LoginRequest request)
         {
             try
             {
                 var loginDto = new LoginDto
                 {
-                    PhoneNumber = request.Identifier,
+                    PhoneNumber = "", // Empty like mobile app
                     OTP = request.Credential
                 };
 
@@ -38,7 +39,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
 
                 if (response.token == "NA" || string.IsNullOrEmpty(response.token))
                 {
-                    return new AuthenticationResult(false, ErrorMessage: "Invalid invite code");
+                    return new AuthenticationResult(false, ErrorMessage: "Invalid login token");
                 }
 
                 await _tokenStorage.SetTokenAsync(response.token);

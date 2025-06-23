@@ -1,7 +1,245 @@
 ﻿@page "/"
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Services.Authentication
+@using Toxiq.WebApp.Client.Components
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Toxiq</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="feed-container">
+    <header class="feed-header">
+        <Logo Width="40" Height="40" CssClass="header-logo" />
+        <h1>Toxiq</h1>
 
-Welcome to your new app.
+        @if (isAuthenticated)
+        {
+            <div class="user-actions">
+                <button class="user-btn" @onclick="ShowUserMenu">
+                    @(currentUser?.Name ?? "User")
+                </button>
+                <button class="logout-btn" @onclick="Logout">
+                    Logout
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="auth-actions">
+                <button class="login-btn" @onclick="GoToLogin">
+                    Login
+                </button>
+            </div>
+        }
+    </header>
+
+    <main class="feed-main">
+        @if (isAuthenticated)
+        {
+            <div class="feed-content">
+                <div class="feed-placeholder">
+                    <Logo Width="80" Height="80" Color="rgba(102, 126, 234, 0.3)" />
+                    <h2>Welcome to your feed!</h2>
+                    <p>Posts will appear here once the feed is implemented.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="guest-content">
+                <div class="welcome-section">
+                    <Logo Width="120" Height="120" />
+                    <h2>Welcome to Toxiq</h2>
+                    <p>Connect, share, and discover amazing content.</p>
+                    <button class="cta-btn" @onclick="GoToLogin">
+                        Get Started
+                    </button>
+                </div>
+            </div>
+        }
+    </main>
+</div>
+
+<style>
+    .feed-container {
+        min-height: 100vh;
+        background: #f8f9fa;
+    }
+
+    .feed-header {
+        background: white;
+        border-bottom: 1px solid #e9ecef;
+        padding: 1rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+        .feed-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-left: 12px;
+        }
+
+    .header-logo {
+        color: #667eea;
+    }
+
+    .user-actions, .auth-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .user-btn, .logout-btn, .login-btn, .cta-btn {
+        padding: 8px 16px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .login-btn, .cta-btn {
+        background: #667eea;
+        color: white;
+    }
+
+        .login-btn:hover, .cta-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+    .user-btn {
+        background: #f8f9fa;
+        color: #333;
+        border: 1px solid #dee2e6;
+    }
+
+        .user-btn:hover {
+            background: #e9ecef;
+        }
+
+    .logout-btn {
+        background: transparent;
+        color: #dc3545;
+        border: 1px solid #dc3545;
+    }
+
+        .logout-btn:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+    .feed-main {
+        padding: 2rem;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .feed-placeholder, .welcome-section {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+        .feed-placeholder h2, .welcome-section h2 {
+            margin: 1rem 0 0.5rem 0;
+            color: #333;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .feed-placeholder p, .welcome-section p {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 1.5rem;
+        }
+
+    .cta-btn {
+        padding: 12px 24px;
+        font-size: 16px;
+    }
+
+    @@media (max-width: 768px) {
+        .feed-header
+
+    {
+        padding: 1rem;
+    }
+
+    .feed-header h1 {
+        font-size: 20px;
+    }
+
+    .feed-main {
+        padding: 1rem;
+    }
+
+    .user-actions, .auth-actions {
+        gap: 8px;
+    }
+
+    .user-btn, .logout-btn, .login-btn {
+        padding: 6px 12px;
+        font-size: 14px;
+    }
+
+    }
+</style>
+
+@code {
+    private bool isAuthenticated = false;
+    private UserProfile currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to authentication state changes
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+        // Check initial authentication state
+        await CheckAuthenticationState();
+    }
+
+    private async Task CheckAuthenticationState()
+    {
+        isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        if (isAuthenticated)
+        {
+            currentUser = await AuthService.GetCurrentUserAsync();
+        }
+        StateHasChanged();
+    }
+
+    private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
+    {
+        isAuthenticated = e.IsAuthenticated;
+        currentUser = e.User;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void GoToLogin()
+    {
+        Navigation.NavigateTo("/login");
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+    }
+
+    private void ShowUserMenu()
+    {
+        // TODO: Implement user menu dropdown
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

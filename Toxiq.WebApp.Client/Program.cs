@@ -40,6 +40,8 @@ namespace Toxiq.WebApp.Client
             // API Services
             builder.Services.AddScoped<IApiService, OptimizedApiService>();
 
+
+
             // Lazy loading assemblies
             builder.Services.AddScoped<ILazyLoader, LazyLoader>();
 

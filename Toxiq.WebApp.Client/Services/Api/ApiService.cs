@@ -15,7 +15,6 @@ public interface IAuthService
 {
     ValueTask<bool> CheckHeartBeat();
     ValueTask<LoginResponse> Login(LoginDto loginDto);
-    ValueTask Reset();
 }
 
 public interface IUserService
