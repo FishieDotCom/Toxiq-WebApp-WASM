@@ -1,3 +1,89 @@
 ﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Services.Authentication
+@using Toxiq.WebApp.Client.Components
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@implements IDisposable
 
-@Body
+<div class="page">
+    <main>
+        @if (isAuthenticated)
+        {
+            <header class="feed-header">
+                <div class="header-brand">
+                    <Logo Width="40" Height="40" Color="var(--white)" />
+                    <h1 class="header-title">Toxiq</h1>
+                </div>
+
+                <div class="header-actions">
+                    <div class="user-menu" @onclick="ShowUserMenu">
+                        @(currentUser?.Name ?? currentUser?.UserName ?? "User")
+                    </div>
+                    <button class="btn btn-secondary" @onclick="Logout">
+                        Logout
+                    </button>
+                </div>
+            </header>
+        }
+
+        <article class="content">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private bool isAuthenticated = false;
+    private UserProfile currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        await CheckAuthenticationState();
+    }
+
+    private async Task CheckAuthenticationState()
+    {
+        try
+        {
+            isAuthenticated = await AuthService.IsAuthenticatedAsync();
+            if (isAuthenticated)
+            {
+                currentUser = await AuthService.GetCurrentUserAsync();
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking auth state: {ex.Message}");
+        }
+    }
+
+    private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
+    {
+        isAuthenticated = e.IsAuthenticated;
+        currentUser = e.User;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task Logout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/");
+    }
+
+    private void ShowUserMenu()
+    {
+        if (currentUser?.UserName != null)
+        {
+            Navigation.NavigateTo($"/profile/{currentUser.UserName}");
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

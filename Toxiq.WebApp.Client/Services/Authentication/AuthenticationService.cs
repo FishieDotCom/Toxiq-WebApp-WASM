@@ -19,17 +19,18 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         public UserProfile User { get; set; }
     }
 
+    // Toxiq.WebApp.Client/Services/Authentication/AuthenticationService.cs
     public class AuthenticationService : IAuthenticationService
     {
         private readonly IEnumerable<IAuthenticationProvider> _providers;
         private readonly ITokenStorage _tokenStorage;
         private readonly ICacheService _cache;
+        private readonly IApiService _apiService;
         private readonly ILogger<AuthenticationService> _logger;
-        private readonly IApiService _apiService; // Add this
-
 
         private UserProfile _currentUser;
         private bool? _isAuthenticated;
+        private bool _hasInitialized = false;
 
         public event EventHandler<AuthenticationStateChangedEventArgs> AuthenticationStateChanged;
 
@@ -37,74 +38,119 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             IEnumerable<IAuthenticationProvider> providers,
             ITokenStorage tokenStorage,
             ICacheService cache,
-            ILogger<AuthenticationService> logger,
-            IApiService apiService)
+            IApiService apiService,
+            ILogger<AuthenticationService> logger)
         {
             _providers = providers;
             _tokenStorage = tokenStorage;
             _cache = cache;
-            _logger = logger;
             _apiService = apiService;
+            _logger = logger;
         }
 
         public async ValueTask<bool> IsAuthenticatedAsync()
         {
-            if (_isAuthenticated.HasValue)
-                return _isAuthenticated.Value;
-
-            var token = await _tokenStorage.GetTokenAsync();
-            if (string.IsNullOrEmpty(token))
+            // Initialize on first call
+            if (!_hasInitialized)
             {
-                _isAuthenticated = false;
-                return false;
+                await InitializeAsync();
             }
 
-            // Validate token with available providers
-            foreach (var provider in _providers.Where(p => p.IsAvailable))
-            {
-                try
-                {
-                    var isValid = await provider.ValidateTokenAsync(token);
-                    if (isValid)
-                    {
-                        _isAuthenticated = true;
-                        return true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Provider {Provider} failed to validate token", provider.ProviderName);
-                }
-            }
-
-            _isAuthenticated = false;
-            await _tokenStorage.RemoveTokenAsync(); // Remove invalid token
-            return false;
+            return _isAuthenticated ?? false;
         }
 
-        public async ValueTask<AuthenticationResult> LoginAsync(string inviteCode)
+        private async ValueTask InitializeAsync()
         {
-            var request = new LoginRequest("manual", inviteCode);
+            if (_hasInitialized) return;
 
-            // Try manual provider first
-            var manualProvider = _providers.FirstOrDefault(p => p.ProviderName == "Manual");
-            if (manualProvider?.IsAvailable == true)
+            try
             {
-                var result = await manualProvider.LoginAsync(request);
-                if (result.IsSuccess)
-                {
-                    await OnAuthenticationSucceeded(result);
-                }
-                return result;
-            }
+                _logger.LogDebug("Initializing authentication service...");
 
-            return new AuthenticationResult(false, ErrorMessage: "No authentication provider available");
+                var token = await _tokenStorage.GetTokenAsync();
+                if (string.IsNullOrEmpty(token))
+                {
+                    _logger.LogDebug("No stored token found");
+                    _isAuthenticated = false;
+                    _hasInitialized = true;
+                    return;
+                }
+
+                _logger.LogDebug("Found stored token, validating...");
+
+                // Try to validate the token with available providers
+                foreach (var provider in _providers.Where(p => p.IsAvailable))
+                {
+                    try
+                    {
+                        var isValid = await provider.ValidateTokenAsync(token);
+                        if (isValid)
+                        {
+                            _logger.LogDebug("Token validated successfully with provider {Provider}", provider.ProviderName);
+                            _isAuthenticated = true;
+
+                            // Try to load user profile
+                            await LoadCurrentUserAsync();
+
+                            // Notify that we're authenticated
+                            AuthenticationStateChanged?.Invoke(this, new AuthenticationStateChangedEventArgs
+                            {
+                                IsAuthenticated = true,
+                                User = _currentUser
+                            });
+
+                            _hasInitialized = true;
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Provider {Provider} failed to validate token", provider.ProviderName);
+                    }
+                }
+
+                // If we get here, token is invalid
+                _logger.LogWarning("Stored token is invalid, removing it");
+                await _tokenStorage.RemoveTokenAsync();
+                _isAuthenticated = false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during authentication initialization");
+                _isAuthenticated = false;
+            }
+            finally
+            {
+                _hasInitialized = true;
+            }
+        }
+
+        private async ValueTask LoadCurrentUserAsync()
+        {
+            try
+            {
+                _currentUser = await _cache.GetOrSetAsync("current_user", async () =>
+                {
+                    return await _apiService.UserService.GetMe();
+                }, TimeSpan.FromMinutes(30));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to load current user profile");
+                _currentUser = null;
+            }
         }
 
         public async ValueTask<AuthenticationResult> TryAutoLoginAsync()
         {
+            // Initialize if not already done
+            if (!_hasInitialized)
+            {
+                await InitializeAsync();
+            }
+
             // Check if already authenticated
-            if (await IsAuthenticatedAsync())
+            if (_isAuthenticated == true)
             {
                 var user = await GetCurrentUserAsync();
                 return new AuthenticationResult(true, UserProfile: user);
@@ -134,6 +180,24 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             return new AuthenticationResult(false, ErrorMessage: "Auto-login not available");
         }
 
+        public async ValueTask<AuthenticationResult> LoginAsync(string inviteCode)
+        {
+            var request = new LoginRequest("", inviteCode);
+
+            var manualProvider = _providers.FirstOrDefault(p => p.ProviderName == "Manual");
+            if (manualProvider?.IsAvailable == true)
+            {
+                var result = await manualProvider.LoginAsync(request);
+                if (result.IsSuccess)
+                {
+                    await OnAuthenticationSucceeded(result);
+                }
+                return result;
+            }
+
+            return new AuthenticationResult(false, ErrorMessage: "No authentication provider available");
+        }
+
         public async ValueTask LogoutAsync()
         {
             // Notify all providers
@@ -156,6 +220,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
 
             _currentUser = null;
             _isAuthenticated = false;
+            _hasInitialized = true; // Keep initialized but not authenticated
 
             // Notify state change
             AuthenticationStateChanged?.Invoke(this, new AuthenticationStateChangedEventArgs
@@ -169,33 +234,26 @@ namespace Toxiq.WebApp.Client.Services.Authentication
 
         public async ValueTask<UserProfile> GetCurrentUserAsync()
         {
+            if (!_hasInitialized)
+            {
+                await InitializeAsync();
+            }
+
             if (_currentUser != null)
                 return _currentUser;
 
-            if (!await IsAuthenticatedAsync())
+            if (!(_isAuthenticated ?? false))
                 return null;
 
-            try
-            {
-                _currentUser = await _cache.GetOrSetAsync("current_user", async () =>
-                {
-                    // Use the API service to get the current user
-                    return await _apiService.UserService.GetMe();
-                }, TimeSpan.FromMinutes(30));
-
-                return _currentUser;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to get current user");
-                return null;
-            }
+            await LoadCurrentUserAsync();
+            return _currentUser;
         }
 
         private async ValueTask OnAuthenticationSucceeded(AuthenticationResult result)
         {
             _currentUser = result.UserProfile;
             _isAuthenticated = true;
+            _hasInitialized = true;
 
             // Cache user profile
             if (_currentUser != null)
