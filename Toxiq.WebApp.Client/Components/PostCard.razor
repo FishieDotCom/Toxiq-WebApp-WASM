@@ -1,0 +1,362 @@
+﻿@* Toxiq.WebApp.Client/Components/PostCard.razor *@
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Services.Feed
+@inject IFeedService FeedService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+
+<div class="post-card" @onclick="HandlePostClick">
+    <div class="post-header">
+        <div class="post-author" @onclick="HandleProfileClick" @onclick:stopPropagation="true">
+            <span class="author-name">@Post.Name</span>
+            <span class="author-username">@@@Post.UserName</span>
+        </div>
+
+        @if (Post.Type == PostType.Burn)
+        {
+            <div class="post-type-indicator">🔥</div>
+        }
+    </div>
+
+    <div class="post-content">
+        <div class="post-text" style="@GetContentStyle()">
+            @Post.Content
+        </div>
+
+        @if (Post.PostMedia?.Any() == true)
+        {
+            <div class="post-media">
+                <img src="@Post.PostMedia.First().MediaPath"
+                     alt="Post attachment"
+                     class="post-image" />
+            </div>
+        }
+
+        @if (Post.ReplyType != ReplyType.Non && ReplyPost != null)
+        {
+            <div class="reply-content">
+                <div class="reply-header">
+                    <span class="reply-author">@ReplyPost.Name</span>
+                    <span class="reply-username">@@@ReplyPost.UserName</span>
+                </div>
+                <div class="reply-text">@ReplyPost.Content</div>
+            </div>
+        }
+    </div>
+
+    <div class="post-stats">
+        <span class="stat-item">@(Post.SupportCount ?? 0) Likes</span>
+        <span class="stat-item">@(Post.CommentCount ?? 0) Comments</span>
+    </div>
+
+    <div class="post-actions">
+        <div class="support-buttons">
+            <button class="action-btn support-btn @GetSupportClass(true)"
+                    @onclick="HandleUpvote" @onclick:stopPropagation="true">
+                <span class="btn-icon">▲</span>
+            </button>
+
+            <button class="action-btn support-btn @GetSupportClass(false)"
+                    @onclick="HandleDownvote" @onclick:stopPropagation="true">
+                <span class="btn-icon">▼</span>
+            </button>
+        </div>
+
+        <button class="action-btn comment-btn"
+                @onclick="HandlePostClick" @onclick:stopPropagation="true">
+            <span class="btn-icon">💬</span>
+            <span class="btn-text">Comment</span>
+        </button>
+
+        <button class="action-btn share-btn"
+                @onclick="HandleShare" @onclick:stopPropagation="true">
+            <span class="btn-icon">🔗</span>
+            <span class="btn-text">Share</span>
+        </button>
+    </div>
+</div>
+
+<style>
+    .post-card {
+        background-color: var(--gray-950);
+        border: 1px solid var(--transparent-white);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .post-card:hover {
+            background-color: var(--gray-900);
+            border-color: var(--gray-400);
+        }
+
+    .post-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .post-author {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+
+    .author-name {
+        color: var(--white);
+        font-weight: 500;
+        font-size: 16px;
+    }
+
+    .author-username {
+        color: var(--gray-300);
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .post-type-indicator {
+        font-size: 18px;
+    }
+
+    .post-content {
+        margin-bottom: 12px;
+    }
+
+    .post-text {
+        color: var(--white);
+        font-size: 17px;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin-bottom: 12px;
+    }
+
+    .post-media {
+        margin-top: 12px;
+    }
+
+    .post-image {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
+        max-height: 400px;
+        object-fit: cover;
+    }
+
+    .reply-content {
+        background-color: var(--gray-600);
+        border: 1px solid var(--transparent-white);
+        border-radius: 8px;
+        padding: 12px;
+        margin-top: 12px;
+    }
+
+    .reply-header {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .reply-author {
+        color: var(--white);
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .reply-username {
+        color: var(--gray-300);
+        font-size: 14px;
+    }
+
+    .reply-text {
+        color: var(--white);
+        font-size: 14px;
+        line-height: 1.3;
+    }
+
+    .post-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        opacity: 0.7;
+        font-size: 12px;
+    }
+
+    .stat-item {
+        color: var(--gray-300);
+    }
+
+    .post-actions {
+        display: flex;
+        gap: 12px;
+        height: 40px;
+    }
+
+    .support-buttons {
+        display: flex;
+        gap: 4px;
+    }
+
+    .action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border: none;
+        border-radius: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        color: var(--white);
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        flex: 1;
+    }
+
+        .action-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+    .support-btn {
+        flex: 0 0 auto;
+        min-width: 40px;
+        padding: 8px;
+    }
+
+        .support-btn.active-up {
+            background-color: rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+        }
+
+        .support-btn.active-down {
+            background-color: rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+    .btn-icon {
+        font-size: 16px;
+    }
+
+    .btn-text {
+        font-weight: 600;
+    }
+
+    @@media (max-width: 768px) {
+        .post-card
+
+    {
+        padding: 12px;
+        margin-bottom: 8px;
+    }
+
+    .post-actions {
+        gap: 8px;
+    }
+
+    .action-btn {
+        padding: 6px 8px;
+        font-size: 13px;
+    }
+
+    }
+</style>
+
+@code {
+    [Parameter] public BasePost Post { get; set; }
+    [Parameter] public bool FullPost { get; set; } = false;
+    [Parameter] public EventCallback<BasePost> OnPostClick { get; set; }
+
+    private BasePost ReplyPost { get; set; }
+    private bool? CurrentSupportStatus { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        CurrentSupportStatus = Post.SupportStatus;
+
+        // Load reply post if this is a reply
+        if (Post.ReplyType != ReplyType.Non && Post.ReplyRefId.HasValue)
+        {
+            try
+            {
+                // You'd need to implement GetPost in the API service
+                // ReplyPost = await ApiService.PostService.GetPost(Post.ReplyRefId.Value);
+            }
+            catch (Exception ex)
+            {
+                // Handle error silently
+            }
+        }
+    }
+
+    private string GetContentStyle()
+    {
+        var maxHeight = FullPost ? "none" : "200px";
+        var overflow = FullPost ? "visible" : "hidden";
+        return $"max-height: {maxHeight}; overflow: {overflow};";
+    }
+
+    private string GetSupportClass(bool status)
+    {
+        if (CurrentSupportStatus == status)
+        {
+            return status == true ? "active-up" : "active-down";
+        }
+        return "";
+    }
+
+    private async Task HandleUpvote()
+    {
+        var success = await FeedService.UpvotePostAsync(Post.Id);
+        if (success)
+        {
+            CurrentSupportStatus = CurrentSupportStatus == true ? null : true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleDownvote()
+    {
+        var success = await FeedService.DownvotePostAsync(Post.Id);
+        if (success)
+        {
+            CurrentSupportStatus = CurrentSupportStatus == false ? null : false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandlePostClick()
+    {
+        if (OnPostClick.HasDelegate)
+        {
+            await OnPostClick.InvokeAsync(Post);
+        }
+        else
+        {
+            Navigation.NavigateTo($"/post/{Post.Id}");
+        }
+    }
+
+    private async Task HandleProfileClick()
+    {
+        Navigation.NavigateTo($"/profile/{Post.UserName}");
+    }
+
+    private async Task HandleShare()
+    {
+        // Implement share functionality
+        var postUrl = $"{Navigation.BaseUri}post/{Post.Id}";
+
+        // Try to use Web Share API if available
+        await JSRuntime.InvokeVoidAsync("navigator.share", new
+        {
+            url = postUrl,
+            text = Post.Content?.Substring(0, Math.Min(Post.Content.Length, 100)) + "..."
+        });
+    }
+}

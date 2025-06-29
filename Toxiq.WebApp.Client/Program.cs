@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.FluentUI.AspNetCore.Components;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Toxiq.WebApp.Client.Extensions;
 using Toxiq.WebApp.Client.Services.Api;
 using Toxiq.WebApp.Client.Services.Authentication;
 using Toxiq.WebApp.Client.Services.Caching;
@@ -20,9 +21,11 @@ namespace Toxiq.WebApp.Client
             builder.RootComponents.Add<App>("#app");
             builder.RootComponents.Add<HeadOutlet>("head::after");
 
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
-            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://toxiq.xyz/api/") });
+            builder.Logging.SetMinimumLevel(LogLevel.Information);
+            var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://toxiq.xyz/api/";
+            builder.Services.AddToxiqServices(apiBaseUrl);
 
             builder.Services.AddBlazoredLocalStorage(config =>
             {
