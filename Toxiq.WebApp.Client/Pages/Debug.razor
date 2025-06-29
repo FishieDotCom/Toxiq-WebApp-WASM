@@ -1,0 +1,106 @@
+﻿@* Toxiq.WebApp.Client/Pages/Debug.razor *@
+@page "/debug"
+@using Blazored.LocalStorage
+@using Toxiq.WebApp.Client.Services.Authentication
+@inject ITokenStorage TokenStorage
+@inject ILocalStorageService LocalStorage
+@inject IJSRuntime JSRuntime
+
+<h3>Debug Token Storage</h3>
+
+<div style="margin: 20px 0;">
+    <input @bind="testToken" placeholder="Enter test token" />
+    <button @onclick="SetTestToken">Set Token</button>
+    <button @onclick="GetTestToken">Get Token</button>
+    <button @onclick="RemoveTestToken">Remove Token</button>
+</div>
+
+<div style="margin: 20px 0;">
+    <button @onclick="TestDirectLocalStorage">Test Direct localStorage</button>
+    <button @onclick="CheckBrowserStorage">Check Browser Storage</button>
+</div>
+
+<div style="background: #f0f0f0; padding: 10px; margin: 10px 0;">
+    <h4>Results:</h4>
+    <pre>@debugOutput</pre>
+</div>
+
+@code {
+    private string testToken = "TEST_TOKEN_123";
+    private string debugOutput = "";
+
+    private async Task SetTestToken()
+    {
+        try
+        {
+            await TokenStorage.SetTokenAsync(testToken);
+            debugOutput += $"✓ Set token via TokenStorage: {testToken}\n";
+        }
+        catch (Exception ex)
+        {
+            debugOutput += $"✗ Error setting token: {ex.Message}\n";
+        }
+    }
+
+    private async Task GetTestToken()
+    {
+        try
+        {
+            var token = await TokenStorage.GetTokenAsync();
+            debugOutput += $"📖 Retrieved token: {token ?? "NULL"}\n";
+        }
+        catch (Exception ex)
+        {
+            debugOutput += $"✗ Error getting token: {ex.Message}\n";
+        }
+    }
+
+    private async Task RemoveTestToken()
+    {
+        try
+        {
+            await TokenStorage.RemoveTokenAsync();
+            debugOutput += $"🗑️ Removed token\n";
+        }
+        catch (Exception ex)
+        {
+            debugOutput += $"✗ Error removing token: {ex.Message}\n";
+        }
+    }
+
+    private async Task TestDirectLocalStorage()
+    {
+        try
+        {
+            await LocalStorage.SetItemAsync("direct_test", "DIRECT_VALUE");
+            var value = await LocalStorage.GetItemAsync<string>("direct_test");
+            debugOutput += $"🔧 Direct localStorage test: {value}\n";
+        }
+        catch (Exception ex)
+        {
+            debugOutput += $"✗ Direct localStorage error: {ex.Message}\n";
+        }
+    }
+
+    private async Task CheckBrowserStorage()
+    {
+        try
+        {
+            var result = await JSRuntime.InvokeAsync<string>("eval", @"
+                try {
+                    localStorage.setItem('js_test', 'JS_WORKS');
+                    const value = localStorage.getItem('js_test');
+                    const keys = Object.keys(localStorage);
+                    return 'JS localStorage works: ' + value + ', Keys: ' + keys.join(', ');
+                } catch(e) {
+                    return 'JS localStorage error: ' + e.message;
+                }
+            ");
+            debugOutput += $"🌐 Browser localStorage: {result}\n";
+        }
+        catch (Exception ex)
+        {
+            debugOutput += $"✗ Browser test error: {ex.Message}\n";
+        }
+    }
+}

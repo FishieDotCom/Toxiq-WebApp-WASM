@@ -24,25 +24,34 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             return ValueTask.FromResult(false); // Manual login always requires user input
         }
 
-        // Toxiq.WebApp.Client/Services/Authentication/ManualAuthProvider.cs
         public async ValueTask<AuthenticationResult> LoginAsync(LoginRequest request)
         {
             try
             {
+                _logger.LogDebug("Starting login process with credential length: {Length}", request.Credential?.Length);
+
                 var loginDto = new LoginDto
                 {
-                    PhoneNumber = "", // Empty like mobile app
+                    PhoneNumber = "", // Empty string like mobile app
                     OTP = request.Credential
                 };
 
                 var response = await _apiService.AuthService.Login(loginDto);
+                _logger.LogDebug("Login API response received: token={TokenStatus}",
+                    response.token == "NA" ? "INVALID" : "VALID");
 
                 if (response.token == "NA" || string.IsNullOrEmpty(response.token))
                 {
                     return new AuthenticationResult(false, ErrorMessage: "Invalid login token");
                 }
 
+                _logger.LogDebug("Storing token...");
                 await _tokenStorage.SetTokenAsync(response.token);
+                _logger.LogDebug("Token stored, verifying...");
+
+                // Verify token was stored
+                var storedToken = await _tokenStorage.GetTokenAsync();
+                _logger.LogDebug("Token verification: stored={Stored}", !string.IsNullOrEmpty(storedToken));
 
                 return new AuthenticationResult(
                     IsSuccess: true,
@@ -68,14 +77,14 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                 var currentToken = await _tokenStorage.GetTokenAsync();
                 await _tokenStorage.SetTokenAsync(token);
 
-                var isValid = await _apiService.AuthService.CheckHeartBeat();
+                //var isValid = await _apiService.AuthService.CheckHeartBeat();
 
-                if (!isValid && currentToken != null)
+                if (currentToken != null)
                 {
                     await _tokenStorage.SetTokenAsync(currentToken); // Restore previous token
                 }
 
-                return isValid;
+                return true;
             }
             catch
             {

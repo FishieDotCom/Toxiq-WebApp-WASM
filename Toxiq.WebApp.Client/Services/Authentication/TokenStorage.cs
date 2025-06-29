@@ -20,13 +20,17 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         {
             _localStorage = localStorage;
             _logger = logger;
+            _logger.LogDebug("LocalStorageTokenStorage initialized");
         }
 
         public async ValueTask<string> GetTokenAsync()
         {
             try
             {
-                return await _localStorage.GetItemAsync<string>(TokenKey);
+                _logger.LogDebug("Attempting to retrieve token from localStorage with key: {TokenKey}", TokenKey);
+                var token = await _localStorage.GetItemAsync<string>(TokenKey);
+                _logger.LogDebug("Retrieved token from localStorage: {HasToken}", !string.IsNullOrEmpty(token));
+                return token;
             }
             catch (Exception ex)
             {
@@ -39,6 +43,8 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         {
             try
             {
+                _logger.LogDebug("Attempting to store token in localStorage: {HasToken}", !string.IsNullOrEmpty(token));
+
                 if (string.IsNullOrEmpty(token))
                 {
                     await RemoveTokenAsync();
@@ -46,7 +52,11 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                 }
 
                 await _localStorage.SetItemAsync(TokenKey, token);
-                _logger.LogDebug("Token stored successfully");
+                _logger.LogDebug("Token stored successfully in localStorage");
+
+                // Verify it was stored
+                var verifyToken = await _localStorage.GetItemAsync<string>(TokenKey);
+                _logger.LogDebug("Token verification: stored={Stored}", !string.IsNullOrEmpty(verifyToken));
             }
             catch (Exception ex)
             {
@@ -59,6 +69,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         {
             try
             {
+                _logger.LogDebug("Removing token from localStorage");
                 await _localStorage.RemoveItemAsync(TokenKey);
                 _logger.LogDebug("Token removed successfully");
             }
@@ -71,7 +82,9 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         public async ValueTask<bool> HasTokenAsync()
         {
             var token = await GetTokenAsync();
-            return !string.IsNullOrEmpty(token);
+            var hasToken = !string.IsNullOrEmpty(token);
+            _logger.LogDebug("HasToken check: {HasToken}", hasToken);
+            return hasToken;
         }
     }
 }

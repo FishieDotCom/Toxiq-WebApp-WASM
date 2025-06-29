@@ -2,6 +2,8 @@ using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.FluentUI.AspNetCore.Components;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Toxiq.WebApp.Client.Services.Api;
 using Toxiq.WebApp.Client.Services.Authentication;
 using Toxiq.WebApp.Client.Services.Caching;
@@ -22,7 +24,16 @@ namespace Toxiq.WebApp.Client
 
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://toxiq.xyz/api/") });
 
-            builder.Services.AddBlazoredLocalStorage();
+            builder.Services.AddBlazoredLocalStorage(config =>
+            {
+                config.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
+                config.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                config.JsonSerializerOptions.IgnoreReadOnlyProperties = true;
+                config.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+                config.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                config.JsonSerializerOptions.ReadCommentHandling = JsonCommentHandling.Skip;
+                config.JsonSerializerOptions.WriteIndented = false;
+            });
 
             builder.Services.AddMemoryCache();
             builder.Services.AddScoped<ICacheService, MultiLayerCacheService>();
@@ -33,12 +44,14 @@ namespace Toxiq.WebApp.Client
             // Platform Detection
             builder.Services.AddScoped<IPlatformService, PlatformService>();
 
+            // API Services
+            builder.Services.AddScoped<IApiService, OptimizedApiService>();
+
             // Authentication
             builder.Services.AddScoped<IAuthenticationProvider, ManualAuthProvider>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
-            // API Services
-            builder.Services.AddScoped<IApiService, OptimizedApiService>();
+
 
 
 
