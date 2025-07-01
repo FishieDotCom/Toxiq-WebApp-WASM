@@ -15,7 +15,7 @@
     @if (isAuthenticated)
     {
         <!-- Feed Header -->
- @*        <div class="feed-header">
+        @* <div class="feed-header">
             <div class="header-brand">
                 <Logo Width="32" Height="32" Color="var(--white)" />
                 <h1 class="header-title">Toxiq</h1>
@@ -40,20 +40,31 @@
 
             @if (posts.Any())
             {
-                <div class="posts-container" @onscroll="HandleScroll" @onscroll:preventDefault="false">
+                <div class="posts-container" @ref="postsContainer">
                     @foreach (var post in posts)
                     {
                         <PostCard Post="post" OnPostClick="HandlePostClick" />
                     }
 
-                    @if (canLoadMore && isLoadingMore)
+                    @if (canLoadMore)
                     {
-                        <div class="load-more-indicator">
-                            <div class="loading-spinner"></div>
-                            <span>Loading more posts...</span>
+                        <div class="load-more-container">
+                            <button class="btn btn-secondary load-more-btn"
+                            @onclick="LoadMorePosts"
+                            disabled="@isLoadingMore">
+                                @if (isLoadingMore)
+                                {
+                                    <div class="loading-spinner small"></div>
+                                    <span>Loading...</span>
+                                }
+                                else
+                                {
+                                    <span>Load More Posts</span>
+                                }
+                            </button>
                         </div>
                     }
-                    else if (!canLoadMore && posts.Any())
+                    else if (posts.Any())
                     {
                         <div class="end-of-feed">
                             <span>You've reached the end!</span>
@@ -62,11 +73,11 @@
                 </div>
 
                 <!-- Floating refresh button -->
-                <div class="floating-refresh @(showFloatingRefresh ? "visible" : "")">
+                @* <div class="floating-refresh">
                     <button class="refresh-btn" @onclick="RefreshFeed" disabled="@isRefreshing">
                         <span class="refresh-icon @(isRefreshing ? "spinning" : "")">↻</span>
                     </button>
-                </div>
+                </div> *@
             }
             else if (isLoading)
             {
@@ -120,282 +131,294 @@
 
 <style>
     .feed-container {
-        min-height: 100vh;
-        background-color: var(--off-black);
-        color: var(--white);
+    min-height: 100vh;
+    background-color: var(--off-black);
+    color: var(--white);
     }
 
     .feed-header {
-        background-color: var(--off-black);
-        border-bottom: 1px solid var(--transparent-white);
-        padding: 16px 20px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        backdrop-filter: blur(10px);
+    background-color: var(--off-black);
+    border-bottom: 1px solid var(--transparent-white);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
     }
 
     .header-brand {
-        display: flex;
-        align-items: center;
-        gap: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     }
 
     .header-title {
-        color: var(--white);
-        font-size: 24px;
-        font-weight: 600;
-        margin: 0;
+    color: var(--white);
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
     }
 
     .header-actions {
-        display: flex;
-        align-items: center;
-        gap: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
     }
 
     .user-menu {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        background-color: var(--gray-600);
-        border: 1px solid var(--transparent-white);
-        border-radius: 8px;
-        color: var(--white);
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background-color: var(--gray-600);
+    border: 1px solid var(--transparent-white);
+    border-radius: 8px;
+    color: var(--white);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
     }
 
-        .user-menu:hover {
-            background-color: var(--gray-500);
-        }
+    .user-menu:hover {
+    background-color: var(--gray-500);
+    }
 
     .feed-main {
-        padding: 20px;
-        max-width: 800px;
-        margin: 0 auto;
-        position: relative;
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
     }
 
-    .refresh-indicator, .load-more-indicator {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        padding: 20px;
-        color: var(--gray-300);
-        font-size: 14px;
+    .refresh-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    color: var(--gray-300);
+    font-size: 14px;
     }
 
     .loading-spinner {
-        width: 20px;
-        height: 20px;
-        border: 2px solid var(--gray-600);
-        border-top: 2px solid var(--white);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gray-600);
+    border-top: 2px solid var(--white);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
     }
 
     @@keyframes spin {
-        0%
+    0%
 
     {
-        transform: rotate(0deg);
+    transform: rotate(0deg);
     }
 
     100% {
-        transform: rotate(360deg);
+    transform: rotate(360deg);
     }
 
     }
 
     .posts-container {
-        max-height: calc(100vh - 120px);
-        overflow-y: auto;
-        padding-bottom: 80px;
+    padding-bottom: 20px;
+    }
+
+    .load-more-container {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    margin-top: 16px;
+    }
+
+    .load-more-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    min-width: 140px;
+    justify-content: center;
+    }
+
+    .loading-spinner.small {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
     }
 
     .floating-refresh {
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        opacity: 0;
-        transform: translateY(20px);
-        transition: all 0.3s ease;
-        z-index: 50;
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 50;
     }
-
-        .floating-refresh.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
 
     .refresh-btn {
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        background-color: var(--magenta);
-        border: none;
-        color: var(--white);
-        font-size: 24px;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        transition: all 0.2s ease;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: var(--magenta);
+    border: none;
+    color: var(--white);
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
     }
 
-        .refresh-btn:hover:not(:disabled) {
-            background-color: #e91e63;
-            transform: scale(1.05);
-        }
+    .refresh-btn:hover:not(:disabled) {
+    background-color: #e91e63;
+    transform: scale(1.05);
+    }
 
-        .refresh-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
+    .refresh-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    }
 
     .refresh-icon.spinning {
-        animation: spin 1s linear infinite;
+    animation: spin 1s linear infinite;
     }
 
     .end-of-feed {
-        text-align: center;
-        padding: 30px 20px;
-        color: var(--gray-400);
-        font-size: 14px;
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--gray-400);
+    font-size: 14px;
     }
 
     /* Loading skeleton styles */
     .feed-skeleton {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     }
 
     .skeleton-post {
-        background-color: var(--gray-950);
-        border: 1px solid var(--transparent-white);
-        border-radius: 12px;
-        padding: 16px;
-        animation: pulse 1.5s ease-in-out infinite alternate;
+    background-color: var(--gray-950);
+    border: 1px solid var(--transparent-white);
+    border-radius: 12px;
+    padding: 16px;
+    animation: pulse 1.5s ease-in-out infinite alternate;
     }
 
     .skeleton-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
     }
 
     .skeleton-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background-color: var(--gray-600);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--gray-600);
     }
 
     .skeleton-name {
-        width: 120px;
-        height: 16px;
-        border-radius: 4px;
-        background-color: var(--gray-600);
+    width: 120px;
+    height: 16px;
+    border-radius: 4px;
+    background-color: var(--gray-600);
     }
 
     .skeleton-content {
-        width: 100%;
-        height: 16px;
-        border-radius: 4px;
-        background-color: var(--gray-600);
-        margin-bottom: 8px;
+    width: 100%;
+    height: 16px;
+    border-radius: 4px;
+    background-color: var(--gray-600);
+    margin-bottom: 8px;
     }
 
-        .skeleton-content.short {
-            width: 60%;
-        }
+    .skeleton-content.short {
+    width: 60%;
+    }
 
     .skeleton-actions {
-        width: 100%;
-        height: 40px;
-        border-radius: 8px;
-        background-color: var(--gray-600);
-        margin-top: 12px;
+    width: 100%;
+    height: 40px;
+    border-radius: 8px;
+    background-color: var(--gray-600);
+    margin-top: 12px;
     }
 
     @@keyframes pulse {
-        0%
+    0%
 
     {
-        opacity: 0.6;
+    opacity: 0.6;
     }
 
     100% {
-        opacity: 1;
+    opacity: 1;
     }
 
     }
 
     /* Empty state */
     .empty-state, .auth-required {
-        text-align: center;
-        padding: 60px 20px;
-        background-color: var(--gray-950);
-        border: 1px solid var(--transparent-white);
-        border-radius: 12px;
-        margin-top: 40px;
+    text-align: center;
+    padding: 60px 20px;
+    background-color: var(--gray-950);
+    border: 1px solid var(--transparent-white);
+    border-radius: 12px;
+    margin-top: 40px;
     }
 
     .auth-content {
-        max-width: 400px;
-        margin: 0 auto;
+    max-width: 400px;
+    margin: 0 auto;
     }
 
     .empty-icon {
-        margin-bottom: 20px;
+    margin-bottom: 20px;
     }
 
     .empty-title, .auth-required h2 {
-        color: var(--white);
-        font-size: 24px;
-        font-weight: 600;
-        margin-bottom: 12px;
+    color: var(--white);
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 12px;
     }
 
     .empty-text, .auth-required p {
-        color: var(--gray-300);
-        font-size: 16px;
-        margin-bottom: 24px;
+    color: var(--gray-300);
+    font-size: 16px;
+    margin-bottom: 24px;
     }
 
     /* Responsive */
     @@media (max-width: 768px) {
-        .feed-header
+    .feed-header
 
     {
-        padding: 12px 16px;
+    padding: 12px 16px;
     }
 
     .header-title {
-        font-size: 20px;
+    font-size: 20px;
     }
 
     .feed-main {
-        padding: 16px;
+    padding: 16px;
     }
 
     .floating-refresh {
-        bottom: 20px;
-        right: 20px;
+    bottom: 20px;
+    right: 20px;
     }
 
     .refresh-btn {
-        width: 48px;
-        height: 48px;
-        font-size: 20px;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
     }
 
     }
@@ -409,7 +432,7 @@
     private bool isRefreshing = false;
     private bool isLoadingMore = false;
     private bool canLoadMore = true;
-    private bool showFloatingRefresh = false;
+    private ElementReference postsContainer;
 
     private GetPostDto searchQuery = new()
         {
@@ -452,6 +475,7 @@
         {
             var result = await FeedService.GetFeedAsync(searchQuery);
             posts = result.Data.ToList();
+            searchQuery.Page++;
             canLoadMore = CanLoadMore(result);
         }
         catch (Exception ex)
@@ -465,12 +489,20 @@
         }
     }
 
+    private bool CanLoadMore(SearchResultDto<BasePost> result)
+    {
+        if (result.TotalPage > searchQuery.Page && result.TotalCount != 0)
+            return true;
+        else
+            return  false;
+    }
+
     private async Task RefreshFeed()
     {
         if (isRefreshing) return;
 
         isRefreshing = true;
-        showFloatingRefresh = false;
+        //showFloatingRefresh = false;
         StateHasChanged();
 
         try
@@ -506,7 +538,8 @@
         }
         catch (Exception ex)
         {
-            // Handle error
+            // Handle error - could show a toast notification
+            Console.WriteLine($"Error loading more posts: {ex.Message}");
         }
         finally
         {
@@ -515,42 +548,9 @@
         }
     }
 
-    private async Task HandleScroll()
-    {
-        try
-        {
-            var scrollPosition = await JSRuntime.InvokeAsync<double>("getScrollPosition");
-            var documentHeight = await JSRuntime.InvokeAsync<double>("getDocumentHeight");
-            var windowHeight = await JSRuntime.InvokeAsync<double>("getWindowHeight");
-
-            // Show floating refresh button when scrolled down
-            showFloatingRefresh = scrollPosition > 200;
-
-            // Load more when near bottom
-            if (scrollPosition + windowHeight >= documentHeight - 100)
-            {
-                await LoadMorePosts();
-            }
-
-            StateHasChanged();
-        }
-        catch
-        {
-            // Ignore JS interop errors
-        }
-    }
-
     private async Task HandlePostClick(BasePost post)
     {
         Navigation.NavigateTo($"/post/{post.Id}");
-    }
-
-    private bool CanLoadMore(SearchResultDto<BasePost> result)
-    {
-        if (result.TotalPage > searchQuery.Page && result.TotalCount != 0)
-            return  true;
-        else
-            return false;
     }
 
     private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)

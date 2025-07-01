@@ -1,0 +1,133 @@
+﻿@* Toxiq.WebApp.Client/Components/FormattedText.razor *@
+@using System.Text.RegularExpressions
+@inject NavigationManager Navigation
+
+@((MarkupString)FormattedHtml)
+
+@code {
+    [Parameter] public string? Text { get; set; }
+
+    private string FormattedHtml => FormatText(Text ?? string.Empty);
+
+    private string FormatText(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return string.Empty;
+
+        // Escape HTML first to prevent XSS
+        //var escapedText = System.Net.WebUtility.HtmlEncode(text);
+
+        // Apply formatting patterns (in order of priority)
+        var formatted = text;
+
+        // 1. Format URLs
+        //formatted = FormatUrls(formatted);
+
+        // 2. Format @mentions
+        formatted = FormatMentions(formatted);
+
+        // 3. Format #hashtags
+        formatted = FormatHashtags(formatted);
+
+        // 4. Format line breaks
+       formatted = FormatLineBreaks(formatted);
+
+        return formatted;
+    }
+
+    private string FormatUrls(string text)
+    {
+        // Match URLs (http/https)
+        var urlPattern = @"\b(?:https?://|www\.)\S+\b";
+
+        return Regex.Replace(text, urlPattern, match =>
+        {
+            var url = match.Value;
+            var href = url.StartsWith("http") ? url : $"https://{url}";
+            var displayUrl = url.Length > 30 ? $"{url.Substring(0, 27)}..." : url;
+
+            return $"<a href=\"{href}\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"post-link\">{displayUrl}</a>";
+        }, RegexOptions.IgnoreCase);
+    }
+
+    private string FormatMentions(string text)
+    {
+        // Match @username patterns
+        var mentionPattern = @"\[@([^\]]+)\]\(user:([^\)]+)\)";
+
+        return Regex.Replace(text, mentionPattern, match =>
+        {
+            var username = match.Groups[1].Value;
+            return $"<a href=\"/profile/{username}\" class=\"post-mention\">@{username}</a>";
+        });
+    }
+
+    private string FormatHashtags(string text)
+    {
+        // Match #hashtag patterns
+        var hashtagPattern = @"#([a-zA-Z0-9_]{1,20})\b";
+
+        return Regex.Replace(text, hashtagPattern, match =>
+        {
+            var hashtag = match.Groups[1].Value;
+            return $"<a href=\"/search?q=%23{hashtag}\" class=\"post-hashtag\">#{hashtag}</a>";
+        });
+    }
+
+    private string FormatLineBreaks(string text)
+    {
+        // Convert line breaks to <br> tags
+        return text.Replace("\n", "<br>");
+    }
+}
+
+<style>
+    /* Link Styles */
+    .post-link {
+        color: #60a5fa;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+        .post-link:hover {
+            color: #93c5fd;
+            text-decoration: underline;
+        }
+
+    /* Mention Styles */
+    .post-mention {
+        color: #34d399;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s ease;
+    }
+
+        .post-mention:hover {
+            color: #6ee7b7;
+            text-decoration: underline;
+        }
+
+    /* Hashtag Styles */
+    .post-hashtag {
+        color: #f59e0b;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+        .post-hashtag:hover {
+            color: #fbbf24;
+            text-decoration: underline;
+        }
+
+    /* Mobile responsive */
+    @@media (max-width: 768px) {
+        .post-link, .post-mention, .post-hashtag
+
+    {
+        font-weight: 500;
+    }
+
+    }
+</style>
