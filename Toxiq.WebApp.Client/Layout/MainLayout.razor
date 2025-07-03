@@ -14,16 +14,16 @@
             <header class="feed-header">
                 <div class="header-brand">
                     <Logo Width="40" Height="40" Color="var(--white)" />
-                    <h1 class="header-title">Toxiq</h1>
+                    <h1 class="header-title">Ashi</h1>
                 </div>
 
                 <div class="header-actions">
                     <div class="user-menu" @onclick="ShowUserMenu">
                         @(currentUser?.Name ?? currentUser?.UserName ?? "User")
                     </div>
-                    <button class="btn btn-secondary" @onclick="Logout">
+@*                     <button class="btn btn-secondary" @onclick="Logout">
                         Logout
-                    </button>
+                    </button> *@
                 </div>
             </header>
         }

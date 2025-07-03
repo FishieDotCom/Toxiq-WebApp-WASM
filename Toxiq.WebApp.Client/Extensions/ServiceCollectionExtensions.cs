@@ -1,4 +1,5 @@
 ﻿// Toxiq.WebApp.Client/Extensions/ServiceCollectionExtensions.cs
+using Toxiq.WebApp.Client.Services.Api;
 using Toxiq.WebApp.Client.Services.Feed;
 
 namespace Toxiq.WebApp.Client.Extensions
@@ -9,6 +10,19 @@ namespace Toxiq.WebApp.Client.Extensions
         {
             // Register feed services
             services.AddScoped<IFeedService, FeedService>();
+
+            return services;
+        }
+
+        public static IServiceCollection AddApiServices(this IServiceCollection services)
+        {
+            // Register API services - mirrors mobile app service architecture
+            services.AddScoped<ICommentService, CommentService>();
+
+            // Add other API services as needed
+            // services.AddScoped<IPostService, PostService>();
+            // services.AddScoped<IUserService, UserService>();
+            // services.AddScoped<INotificationService, NotificationService>();
 
             return services;
         }

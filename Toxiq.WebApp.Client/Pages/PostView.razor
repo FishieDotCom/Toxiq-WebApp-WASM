@@ -1,0 +1,891 @@
+﻿@page "/post/{PostId:guid}"
+@page "/post/{PostId:guid}/{CommentId?}"
+@using Microsoft.AspNetCore.Components
+@using System.Text.RegularExpressions
+@using System.Collections.ObjectModel
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Services.Authentication
+@using Toxiq.WebApp.Client.Services.Feed
+@using Toxiq.WebApp.Client.Services.Api
+@using Toxiq.WebApp.Client.Components
+@using System.Web
+@inject IFeedService FeedService
+@inject IApiService ApiService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject IAuthenticationService AuthService
+
+<PageTitle>@GetPageTitle()</PageTitle>
+
+<HeadContent>
+    <meta name="description" content="@GetMetaDescription()">
+    <meta name="og:description" content="@GetMetaDescription()">
+    <meta name="og:title" content="@GetPageTitle()">
+    <meta property="og:site_name" content="Toxiq">
+    <meta name="og:image" content="https://toxiq.xyz/images/social-preview-post.jpg">
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+</HeadContent>
+
+<style>
+    .post-view-container {
+        background: var(--background-color);
+        min-height: 100vh;
+        color: white;
+    }
+
+    .post-detail {
+        border-bottom: 1px solid #333;
+        padding-bottom: 15px;
+        margin-bottom: 15px;
+    }
+
+    .comments-section {
+        padding: 0 10px;
+    }
+
+    .comment-item {
+        background: #1a1a1a;
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 10px;
+        border-left: 3px solid #333;
+    }
+
+    .comment-item.reply {
+        margin-left: 20px;
+        border-left: 3px solid var(--accent-color);
+    }
+
+    .comment-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .comment-author {
+        font-weight: 600;
+        color: white;
+        margin-right: 8px;
+    }
+
+    .comment-username {
+        color: #888;
+        font-size: 0.9em;
+    }
+
+    .comment-time {
+        color: #666;
+        font-size: 0.8em;
+        margin-left: auto;
+    }
+
+    .comment-content {
+        margin-bottom: 8px;
+        line-height: 1.4;
+    }
+
+    .comment-actions {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .comment-action-btn {
+        background: none;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .comment-action-btn:hover {
+        background: #333;
+        color: white;
+    }
+
+    .comment-action-btn.active {
+        color: var(--accent-color);
+        background: rgba(var(--accent-color-rgb), 0.1);
+    }
+
+    .comment-input-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #1f1f1f;
+        border-top: 1px solid #333;
+        padding: 10px;
+        z-index: 1000;
+    }
+
+    .comment-input-wrapper {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .comment-input {
+        flex: 1;
+        background: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 20px;
+        padding: 10px 15px;
+        color: white;
+        resize: none;
+        min-height: 40px;
+        max-height: 120px;
+        font-family: inherit;
+    }
+
+    .comment-input:focus {
+        outline: none;
+        border-color: var(--accent-color);
+    }
+
+    .comment-input::placeholder {
+        color: #888;
+    }
+
+    .comment-submit-btn {
+        background: var(--accent-color);
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .comment-submit-btn:hover {
+        transform: scale(1.05);
+    }
+
+    .comment-submit-btn:disabled {
+        background: #444;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .reply-indicator {
+        background: rgba(var(--accent-color-rgb), 0.1);
+        border: 1px solid var(--accent-color);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .reply-text {
+        color: var(--accent-color);
+        font-size: 0.9em;
+    }
+
+    .cancel-reply-btn {
+        background: none;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        padding: 2px;
+    }
+
+    .sticker-panel {
+        background: #2a2a2a;
+        border-top: 1px solid #444;
+        padding: 10px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .sticker-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 10px;
+    }
+
+    .sticker-item {
+        object-fit: scale-down;
+        width: 60px;
+        height: 60px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: transform 0.2s ease;
+    }
+
+    .sticker-item:hover {
+        transform: scale(1.1);
+    }
+
+    .loading-skeleton {
+        background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+        border-radius: 8px;
+        height: 20px;
+        margin-bottom: 8px;
+    }
+
+    @@keyframes loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    .media-toggle-btn {
+        background: none;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .media-toggle-btn:hover {
+        background: #333;
+        color: white;
+    }
+
+    .content-spacer {
+        height: 80px; /* Space for fixed comment input */
+    }
+
+    .mention {
+        color: var(--accent-color);
+        text-decoration: none;
+    }
+
+    .mention:hover {
+        text-decoration: underline;
+    }
+
+    .hashtag {
+        color: var(--accent-color);
+    }
+</style>
+
+<div class="post-view-container">
+    @if (isLoading && post == null)
+    {
+        <!-- Loading State -->
+        <div class="post-detail">
+            <div class="loading-skeleton" style="height: 60px; margin-bottom: 15px;"></div>
+            <div class="loading-skeleton" style="height: 20px; width: 80%; margin-bottom: 8px;"></div>
+            <div class="loading-skeleton" style="height: 20px; width: 60%;"></div>
+        </div>
+        
+        @for (int i = 0; i < 5; i++)
+        {
+            <div class="comment-item">
+                <div class="loading-skeleton" style="height: 16px; width: 40%; margin-bottom: 8px;"></div>
+                <div class="loading-skeleton" style="height: 16px; width: 90%; margin-bottom: 4px;"></div>
+                <div class="loading-skeleton" style="height: 16px; width: 70%;"></div>
+            </div>
+        }
+    }
+    else if (post == null)
+    {
+        <!-- Not Found State -->
+        <div class="post-detail" style="text-align: center; padding: 40px;">
+            <h2>🥴</h2>
+            <h3>Post Not Found</h3>
+            <p>This post might have been deleted or the link is incorrect.</p>
+            <button class="comment-action-btn">
+                Go Home
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- Post Content -->
+        <div class="post-detail">
+            <PostCard Post="@post" FullPost="true" />
+        </div>
+
+        <!-- Comments Section -->
+        <div class="comments-section">
+            @if (comments.Any())
+            {
+                @foreach (var comment in comments)
+                {
+                    <div class="comment-item @(comment.IsReply.Value ? "reply" : "")">
+                        <div class="comment-header">
+                            <span class="comment-author">@comment.Name</span>
+                            <span class="comment-username">@@@comment.UserName</span>
+                            <span class="comment-time">@GetRelativeTime(comment.DateCreated.Value)</span>
+                        </div>
+                        
+                        <div class="comment-content">
+                            @if (comment.PostMedia != null)
+                            {
+                                <img src="@comment.PostMedia.MediaPath" alt="Sticker" style="max-width: 100px; max-height: 100px;" />
+                            }
+                            else if (!string.IsNullOrEmpty(comment.Content))
+                            {
+                                <FormattedText Text="@comment.Content"/>
+                            }
+                        </div>
+                        
+                        <div class="comment-actions">
+                            <button class="comment-action-btn @(GetSupportClass(comment.Id, true))" 
+                                    @onclick="() => HandleCommentUpvote(comment)">
+                                ↑ @(comment.SupportCount > 0 ? comment.SupportCount.ToString() : "")
+                            </button>
+                            
+                            <button class="comment-action-btn @(GetSupportClass(comment.Id, false))" 
+                                    @onclick="() => HandleCommentDownvote(comment)">
+                                ↓
+                            </button>
+                            
+                            <button class="comment-action-btn" @onclick="() => StartReply(comment)">
+                                Reply
+                            </button>
+                            
+                            @if (comment.ReplyCount > 0)
+                            {
+                                <button class="comment-action-btn" @onclick="() => LoadReplies(comment)">
+                                    @comment.ReplyCount @(comment.ReplyCount == 1 ? "reply" : "replies")
+                                </button>
+                            }
+                        </div>
+                        
+                        <!-- Replies -->
+                        @if (comment.Replies.Any())
+                        {
+                            @foreach (var reply in comment.Replies)
+                            {
+                                <div class="comment-item reply" style="margin-top: 10px;">
+                                    <div class="comment-header">
+                                        <span class="comment-author">@reply.Name</span>
+                                        <span class="comment-username">@@@reply.UserName</span>
+                                        <span class="comment-time">@GetRelativeTime(reply.DateCreated.Value)</span>
+                                    </div>
+                                    
+                                    <div class="comment-content">
+                                        @if (reply.PostMedia != null)
+                                        {
+                                            <img src="@reply.PostMedia.MediaPath" alt="Sticker" style="max-width: 80px; max-height: 80px;" />
+                                        }
+                                        else if (!string.IsNullOrEmpty(reply.Content))
+                                        {
+                                            <FormattedText Text="@reply.Content" />
+                                        }
+                                    </div>
+                                    
+                                    <div class="comment-actions">
+                                        <button class="comment-action-btn @(GetSupportClass(reply.Id, true))" 
+                                                @onclick="() => HandleCommentUpvote(reply)">
+                                            ↑ @(reply.SupportCount > 0 ? reply.SupportCount.ToString() : "")
+                                        </button>
+                                        
+                                        <button class="comment-action-btn @(GetSupportClass(reply.Id, false))" 
+                                                @onclick="() => HandleCommentDownvote(reply)">
+                                            ↓
+                                        </button>
+                                        
+                                        <button class="comment-action-btn" @onclick="() => StartReply(reply)">
+                                            Reply
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            }
+            else if (!isLoading)
+            {
+                <div style="text-align: center; padding: 40px; color: #888;">
+                    <p>No comments yet. Be the first to comment!</p>
+                </div>
+            }
+        </div>
+        
+        <div class="content-spacer"></div>
+    }
+</div>
+
+<!-- Comment Input (Fixed at bottom) -->
+@if (AuthService.IsAuthenticatedAsync().Result && post != null)
+{
+    <div class="comment-input-container">
+        @if (replyTarget != null)
+        {
+            <div class="reply-indicator">
+                <span class="reply-text">Replying to @@@replyTarget.UserName</span>
+                <button class="cancel-reply-btn" @onclick="CancelReply">✕</button>
+            </div>
+        }
+        
+        @if (showStickerPanel)
+        {
+            <div class="sticker-panel">
+                @if (stickers?.Stickers?.Any() == true)
+                {
+                    <div class="sticker-grid">
+                        @foreach (var sticker in stickers.Stickers)
+                        {
+                            <img src="@sticker.MediaPath" 
+                                 alt="Sticker" 
+                                 class="sticker-item"
+                                 @onclick="() => SelectSticker(sticker)" />
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p style="color: #888; text-align: center;">Loading stickers...</p>
+                }
+            </div>
+        }
+        
+        <div class="comment-input-wrapper">
+            <button class="media-toggle-btn" @onclick="ToggleStickerPanel">
+                @(showStickerPanel ? "📝" : "😀")
+            </button>
+            
+            <textarea class="comment-input" 
+                      @bind="commentContent" 
+                      @onkeydown="HandleCommentKeyDown"
+                      placeholder="@GetCommentPlaceholder()" 
+                      rows="1"
+                      disabled="@isSubmittingComment"></textarea>
+            
+            <button class="comment-submit-btn" 
+                    @onclick="SubmitComment" 
+                    disabled="@(isSubmittingComment || (string.IsNullOrWhiteSpace(commentContent) && selectedSticker == null))">
+                @if (isSubmittingComment)
+                {
+                    <span>⟳</span>
+                }
+                else
+                {
+                    <span>↑</span>
+                }
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter] 
+    public Guid PostId { get; set; }
+    [Parameter] 
+    public string? CommentId { get; set; }
+
+    private BasePost? post;
+    private List<Comment> comments = new();
+    private bool isLoading = true;
+    private bool isSubmittingComment = false;
+    private string commentContent = "";
+    private Comment? replyTarget;
+    private bool showStickerPanel = false;
+    private StickerPack? stickers;
+    private MediaDto? selectedSticker;
+    private Dictionary<Guid, bool?> commentSupportStatus = new();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        // Handle Telegram URL parameters
+        await HandleTelegramUrl();
+        
+        // Load post and comments
+        await LoadPostAndComments();
+        
+   
+            await LoadStickers();
+        
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (PostId != Guid.Empty)
+        {
+            await LoadPostAndComments();
+        }
+    }
+
+    private async Task HandleTelegramUrl()
+    {
+        try
+        {
+            var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+            var query = HttpUtility.ParseQueryString(uri.Query);
+            
+            // Handle Telegram mini app start parameter
+            // Docs: https://docs.telegram-mini-apps.com/platform/start-parameter
+            if (query["tgWebAppStartParam"] != null)
+            {
+                if (Guid.TryParse(query["tgWebAppStartParam"], out var telegramPostId))
+                {
+                    PostId = telegramPostId;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error handling Telegram URL: {ex.Message}");
+        }
+    }
+
+    private async Task LoadPostAndComments()
+    {
+        if (PostId == Guid.Empty) return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Load post
+            post = await ApiService.PostService.GetPost(PostId);
+            
+            if (post == null)
+            {
+                isLoading = false;
+                StateHasChanged();
+                return;
+            }
+
+            // Load comments
+            var commentResult = await ApiService.CommentService.GetPostComments(new GetCommentDto
+            {
+                Count = 100,
+                Page = 1,
+                Id = PostId,
+                IsReply = false,
+                Sort = SortType.New
+            });
+
+            comments = commentResult.Data ?? new List<Comment>();
+
+            // Process comments for mentions and formatting
+            foreach (var comment in comments)
+            {
+                comment.Content = ProcessCommentContent(comment.Content);
+                
+                // Load replies if needed
+                if (comment.ReplyCount > 0)
+                {
+                    await LoadReplies(comment);
+                }
+            }
+
+            // Highlight specific comment if CommentId is provided
+            if (!string.IsNullOrEmpty(CommentId) && Guid.TryParse(CommentId, out var commentGuid))
+            {
+                await HighlightComment(commentGuid);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading post: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadReplies(Comment comment)
+    {
+        try
+        {
+            var replyResult = await ApiService.CommentService.GetPostComments(new GetCommentDto
+            {
+                Count = 50,
+                Page = 1,
+                Id = comment.Id,
+                IsReply = true,
+                Sort = SortType.New
+            });
+
+            comment.Replies = new ObservableCollection<Comment>(replyResult.Data ?? new List<Comment>());
+
+            foreach (var reply in comment.Replies)
+            {
+                reply.Content = ProcessCommentContent(reply.Content);
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading replies: {ex.Message}");
+        }
+    }
+
+    private async Task LoadStickers()
+    {
+        try
+        {
+            stickers = await ApiService.CommentService.GetSticker();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading stickers: {ex.Message}");
+        }
+    }
+
+    private async Task HighlightComment(Guid commentId)
+    {
+        var targetComment = comments.FirstOrDefault(c => c.Id == commentId);
+        
+        if (targetComment == null)
+        {
+            // Load the specific comment if not in the initial load
+            try
+            {
+                var comment = await ApiService.CommentService.GetComment(commentId);
+                if (comment != null)
+                {
+                    comment.Content = ProcessCommentContent(comment.Content);
+                    comments.Insert(0, comment);
+                    StateHasChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading specific comment: {ex.Message}");
+            }
+        }
+    }
+
+    private string ProcessCommentContent(string? content)
+    {
+        if (string.IsNullOrEmpty(content)) return "";
+        
+        // Convert #username mentions to markdown format
+        string pattern = @"#(\w+)";
+        string replacement = @"[@$1](user:$1)";
+        return Regex.Replace(content, pattern, replacement);
+    }
+
+    private async Task SubmitComment()
+    {
+        if (string.IsNullOrWhiteSpace(commentContent) && selectedSticker == null) return;
+
+        isSubmittingComment = true;
+        StateHasChanged();
+
+        try
+        {
+            var newComment = new Comment
+            {
+                Id = Guid.Empty,
+                PostId = PostId,
+                Content = string.IsNullOrWhiteSpace(commentContent) ? null : commentContent.Trim(),
+                PostMedia = selectedSticker,
+                IsReply = replyTarget != null,
+                RepliedTo = replyTarget?.Id,
+                DateCreated = DateTime.Now,
+                UserName = "current_user", // Will be set by API
+                Name = "Current User", // Will be set by API
+                SupportCount = 0
+            };
+
+            var submittedComment = await ApiService.CommentService.CommentOnPost(newComment);
+
+            if (replyTarget != null)
+            {
+                // Add to replies
+                var parentComment = comments.FirstOrDefault(c => c.Id == replyTarget.Id);
+                if (parentComment != null)
+                {
+                    parentComment.Replies.Add(submittedComment);
+                    parentComment.ReplyCount = (parentComment.ReplyCount ?? 0) + 1;
+                }
+            }
+            else
+            {
+                // Add to main comments
+                comments.Insert(0, submittedComment);
+            }
+
+            // Update post comment count
+            if (post != null)
+            {
+                post.CommentCount = (post.CommentCount ?? 0) + 1;
+            }
+
+            // Reset form
+            commentContent = "";
+            selectedSticker = null;
+            replyTarget = null;
+            showStickerPanel = false;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error submitting comment: {ex.Message}");
+            // Show error message to user
+        }
+        finally
+        {
+            isSubmittingComment = false;
+            StateHasChanged();
+        }
+    }
+
+    private void StartReply(Comment comment)
+    {
+        replyTarget = comment;
+        showStickerPanel = false;
+        StateHasChanged();
+        
+        // Focus on comment input
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100);
+            await JSRuntime.InvokeVoidAsync("focusElement", ".comment-input");
+        });
+    }
+
+    private void CancelReply()
+    {
+        replyTarget = null;
+        StateHasChanged();
+    }
+
+    private void ToggleStickerPanel()
+    {
+        showStickerPanel = !showStickerPanel;
+        StateHasChanged();
+    }
+
+    private void SelectSticker(MediaDto sticker)
+    {
+        selectedSticker = sticker;
+        showStickerPanel = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleCommentUpvote(Comment comment)
+    {
+        try
+        {
+            await ApiService.CommentService.UpvoteComment(comment.Id);
+            
+            // Update local state
+            var currentStatus = commentSupportStatus.GetValueOrDefault(comment.Id);
+            commentSupportStatus[comment.Id] = currentStatus == true ? null : true;
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error upvoting comment: {ex.Message}");
+        }
+    }
+
+    private async Task HandleCommentDownvote(Comment comment)
+    {
+        try
+        {
+            await ApiService.CommentService.DownvoteComment(comment.Id);
+            
+            // Update local state
+            var currentStatus = commentSupportStatus.GetValueOrDefault(comment.Id);
+            commentSupportStatus[comment.Id] = currentStatus == false ? null : false;
+            
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error downvoting comment: {ex.Message}");
+        }
+    }
+
+    private async Task HandleCommentKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey && !isSubmittingComment)
+        {
+            await SubmitComment();
+        }
+    }
+
+    private void HandleMentionClick(string username)
+    {
+       Navigation.NavigateTo($"/profile/{username}");
+    }
+
+    private string GetSupportClass(Guid commentId, bool isUpvote)
+    {
+        var status = commentSupportStatus.GetValueOrDefault(commentId);
+        if (status == isUpvote) return "active";
+        return "";
+    }
+
+    private string GetCommentPlaceholder()
+    {
+        if (replyTarget != null)
+            return $"Reply to @{replyTarget.UserName}...";
+        return "Write a comment...";
+    }
+
+    private string GetPageTitle()
+    {
+        if (post != null)
+        {
+            var preview = post.Content?.Length > 50 
+                ? post.Content.Substring(0, 50) + "..." 
+                : post.Content ?? "Post";
+            return $"{post.Name} - {preview} | Toxiq";
+        }
+        return "Post | Toxiq";
+    }
+
+    private string GetMetaDescription()
+    {
+        if (post != null)
+        {
+            return post.Content?.Length > 150 
+                ? post.Content.Substring(0, 150) + "..." 
+                : post.Content ?? "Check out this post on Toxiq";
+        }
+        return "Check out this post on Toxiq - Where Cool Kids Hangout";
+    }
+
+    private string GetRelativeTime(DateTime dateTime)
+    {
+        var timeSpan = DateTime.Now - dateTime;
+
+        if (timeSpan.TotalMinutes < 1)
+        {
+            return "now";
+        }
+        else if (timeSpan.TotalMinutes < 60)
+        {
+            return $"{(int)timeSpan.TotalMinutes}m";
+        }
+        else if (timeSpan.TotalHours < 24)
+        {
+            return $"{(int)timeSpan.TotalHours}h";
+        }
+        else if (timeSpan.TotalDays < 30)
+        {
+            return $"{(int)timeSpan.TotalDays}d";
+        }
+        else
+        {
+            return dateTime.ToString("MMM d");
+        }
+    }
+
+}

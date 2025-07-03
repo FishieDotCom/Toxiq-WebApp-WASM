@@ -1,4 +1,5 @@
 ﻿using Toxiq.Mobile.Dto;
+using Toxiq.WebApp.Client.Services.Api;
 
 public interface IApiService
 {
@@ -34,16 +35,6 @@ public interface IPostService
     ValueTask<BasePost> GetPrompt(Guid postId);
     ValueTask<SearchResultDto<BasePost>> GetPostsByPrompt(Guid promptId, int page, int pageSize);
     ValueTask Publish(BasePost post);
-    ValueTask Upvote(Guid id);
-    ValueTask Downvote(Guid id);
-}
-
-public interface ICommentService
-{
-    ValueTask<SearchResultDto<Comment>> GetPostComments(GetCommentDto filter);
-    ValueTask<Comment> CommentOnPost(Comment comment);
-    ValueTask<Comment> GetComment(Guid commentId);
-    ValueTask<StickerPack> GetSticker();
     ValueTask Upvote(Guid id);
     ValueTask Downvote(Guid id);
 }

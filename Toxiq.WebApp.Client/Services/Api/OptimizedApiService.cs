@@ -44,7 +44,7 @@ namespace Toxiq.WebApp.Client.Services.Api
             AuthService = new AuthServiceImpl(this);
             UserService = new UserServiceImpl(this);
             PostService = new PostServiceImpl(this);
-            CommentService = new CommentServiceImpl(this);
+            CommentService = new CommentService(this);
             NotesService = new NotesServiceImpl(this);
             ColorService = new ColorServiceImpl(this);
         }
@@ -93,6 +93,12 @@ namespace Toxiq.WebApp.Client.Services.Api
 
             var responseJson = await response.Content.ReadAsStringAsync();
             return JsonSerializer.Deserialize<T>(responseJson, JsonOptions);
+        }
+
+        internal async ValueTask<HttpResponseMessage> GetRawAsync(string endpoint)
+        {
+            await EnsureAuthenticatedAsync();
+            return await _httpClient.GetAsync(endpoint);
         }
 
         internal async ValueTask<HttpResponseMessage> PostRawAsync(string endpoint, object data)
@@ -219,31 +225,6 @@ namespace Toxiq.WebApp.Client.Services.Api
 
         public async ValueTask Downvote(Guid id) =>
            await _api.GetAsync<object>($"Post/Downvote/{id}");
-    }
-
-    internal class CommentServiceImpl : ICommentService
-    {
-        private readonly OptimizedApiService _api;
-
-        public CommentServiceImpl(OptimizedApiService api) => _api = api;
-
-        public ValueTask<SearchResultDto<Comment>> GetPostComments(GetCommentDto filter) =>
-            _api.PostAsync<SearchResultDto<Comment>>("Comment/GetComments", filter);
-
-        public ValueTask<Comment> CommentOnPost(Comment comment) =>
-            _api.PostAsync<Comment>("Comment/MakeComment", comment);
-
-        public ValueTask<Comment> GetComment(Guid commentId) =>
-            _api.GetAsync<Comment>($"Comment/GetComment/{commentId}");
-
-        public ValueTask<StickerPack> GetSticker() =>
-            _api.GetCachedAsync<StickerPack>("Comment/GetSticker", TimeSpan.FromHours(1));
-
-        public async ValueTask Upvote(Guid id) =>
-           await _api.GetAsync<object>($"Comment/Upvote/{id}");
-
-        public async ValueTask Downvote(Guid id) =>
-           await _api.GetAsync<object>($"Comment/Downvote/{id}");
     }
 
     internal class NotesServiceImpl : INotesService

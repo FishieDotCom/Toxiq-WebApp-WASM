@@ -26,6 +26,8 @@ namespace Toxiq.WebApp.Client
             builder.Logging.SetMinimumLevel(LogLevel.Information);
             var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://toxiq.xyz/api/";
             builder.Services.AddToxiqServices(apiBaseUrl);
+            builder.Services.AddFeedServices();
+            builder.Services.AddApiServices();
 
             builder.Services.AddBlazoredLocalStorage(config =>
             {
