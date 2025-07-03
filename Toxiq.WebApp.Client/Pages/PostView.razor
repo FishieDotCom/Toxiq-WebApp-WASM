@@ -52,10 +52,10 @@
         border-left: 3px solid #333;
     }
 
-    .comment-item.reply {
-        margin-left: 20px;
-        border-left: 3px solid var(--accent-color);
-    }
+        .comment-item.reply {
+            margin-left: 20px;
+            border-left: 3px solid var(--accent-color);
+        }
 
     .comment-header {
         display: flex;
@@ -105,15 +105,15 @@
         transition: all 0.2s ease;
     }
 
-    .comment-action-btn:hover {
-        background: #333;
-        color: white;
-    }
+        .comment-action-btn:hover {
+            background: #333;
+            color: white;
+        }
 
-    .comment-action-btn.active {
-        color: var(--accent-color);
-        background: rgba(var(--accent-color-rgb), 0.1);
-    }
+        .comment-action-btn.active {
+            color: var(--accent-color);
+            background: rgba(var(--accent-color-rgb), 0.1);
+        }
 
     .comment-input-container {
         position: fixed;
@@ -147,14 +147,14 @@
         font-family: inherit;
     }
 
-    .comment-input:focus {
-        outline: none;
-        border-color: var(--accent-color);
-    }
+        .comment-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
 
-    .comment-input::placeholder {
-        color: #888;
-    }
+        .comment-input::placeholder {
+            color: #888;
+        }
 
     .comment-submit-btn {
         background: var(--accent-color);
@@ -169,15 +169,15 @@
         transition: all 0.2s ease;
     }
 
-    .comment-submit-btn:hover {
-        transform: scale(1.05);
-    }
+        .comment-submit-btn:hover {
+            transform: scale(1.05);
+        }
 
-    .comment-submit-btn:disabled {
-        background: #444;
-        cursor: not-allowed;
-        transform: none;
-    }
+        .comment-submit-btn:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: none;
+        }
 
     .reply-indicator {
         background: rgba(var(--accent-color-rgb), 0.1);
@@ -226,9 +226,9 @@
         transition: transform 0.2s ease;
     }
 
-    .sticker-item:hover {
-        transform: scale(1.1);
-    }
+        .sticker-item:hover {
+            transform: scale(1.1);
+        }
 
     .loading-skeleton {
         background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
@@ -240,8 +240,13 @@
     }
 
     @@keyframes loading {
-        0% { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
+        0% {
+            background-position: 200% 0;
+        }
+
+        100% {
+            background-position: -200% 0;
+        }
     }
 
     .media-toggle-btn {
@@ -254,10 +259,10 @@
         transition: all 0.2s ease;
     }
 
-    .media-toggle-btn:hover {
-        background: #333;
-        color: white;
-    }
+        .media-toggle-btn:hover {
+            background: #333;
+            color: white;
+        }
 
     .content-spacer {
         height: 80px; /* Space for fixed comment input */
@@ -268,9 +273,9 @@
         text-decoration: none;
     }
 
-    .mention:hover {
-        text-decoration: underline;
-    }
+        .mention:hover {
+            text-decoration: underline;
+        }
 
     .hashtag {
         color: var(--accent-color);
@@ -286,7 +291,7 @@
             <div class="loading-skeleton" style="height: 20px; width: 80%; margin-bottom: 8px;"></div>
             <div class="loading-skeleton" style="height: 20px; width: 60%;"></div>
         </div>
-        
+
         @for (int i = 0; i < 5; i++)
         {
             <div class="comment-item">
@@ -327,7 +332,7 @@
                             <span class="comment-username">@@@comment.UserName</span>
                             <span class="comment-time">@GetRelativeTime(comment.DateCreated.Value)</span>
                         </div>
-                        
+
                         <div class="comment-content">
                             @if (comment.PostMedia != null)
                             {
@@ -335,25 +340,23 @@
                             }
                             else if (!string.IsNullOrEmpty(comment.Content))
                             {
-                                <FormattedText Text="@comment.Content"/>
+                                <FormattedText Text="@comment.Content" />
                             }
                         </div>
-                        
+
                         <div class="comment-actions">
-                            <button class="comment-action-btn @(GetSupportClass(comment.Id, true))" 
-                                    @onclick="() => HandleCommentUpvote(comment)">
-                                ↑ @(comment.SupportCount > 0 ? comment.SupportCount.ToString() : "")
-                            </button>
-                            
-                            <button class="comment-action-btn @(GetSupportClass(comment.Id, false))" 
-                                    @onclick="() => HandleCommentDownvote(comment)">
-                                ↓
-                            </button>
-                            
+                            <VoteButtons ContentId="@comment.Id"
+                                         ContentType="comment"
+                                         InitialSupportStatus="@comment.SupportStatus"
+                                         InitialSupportCount="@comment.SupportCount"
+                                         ShowCount="true"
+                                         Variant="compact"
+                                         OnVoteChanged="@HandleCommentVoteChanged" />
+
                             <button class="comment-action-btn" @onclick="() => StartReply(comment)">
                                 Reply
                             </button>
-                            
+
                             @if (comment.ReplyCount > 0)
                             {
                                 <button class="comment-action-btn" @onclick="() => LoadReplies(comment)">
@@ -361,7 +364,7 @@
                                 </button>
                             }
                         </div>
-                        
+
                         <!-- Replies -->
                         @if (comment.Replies.Any())
                         {
@@ -373,7 +376,7 @@
                                         <span class="comment-username">@@@reply.UserName</span>
                                         <span class="comment-time">@GetRelativeTime(reply.DateCreated.Value)</span>
                                     </div>
-                                    
+
                                     <div class="comment-content">
                                         @if (reply.PostMedia != null)
                                         {
@@ -384,18 +387,16 @@
                                             <FormattedText Text="@reply.Content" />
                                         }
                                     </div>
-                                    
+
                                     <div class="comment-actions">
-                                        <button class="comment-action-btn @(GetSupportClass(reply.Id, true))" 
-                                                @onclick="() => HandleCommentUpvote(reply)">
-                                            ↑ @(reply.SupportCount > 0 ? reply.SupportCount.ToString() : "")
-                                        </button>
-                                        
-                                        <button class="comment-action-btn @(GetSupportClass(reply.Id, false))" 
-                                                @onclick="() => HandleCommentDownvote(reply)">
-                                            ↓
-                                        </button>
-                                        
+                                        <VoteButtons ContentId="@reply.Id"
+                                                     ContentType="reply"
+                                                     InitialSupportStatus="@reply.SupportStatus"
+                                                     InitialSupportCount="@reply.SupportCount"
+                                                     ShowCount="true"
+                                                     Variant="compact"
+                                                     OnVoteChanged="@HandleReplyVoteChanged" />
+
                                         <button class="comment-action-btn" @onclick="() => StartReply(reply)">
                                             Reply
                                         </button>
@@ -413,7 +414,7 @@
                 </div>
             }
         </div>
-        
+
         <div class="content-spacer"></div>
     }
 </div>
@@ -429,7 +430,7 @@
                 <button class="cancel-reply-btn" @onclick="CancelReply">✕</button>
             </div>
         }
-        
+
         @if (showStickerPanel)
         {
             <div class="sticker-panel">
@@ -438,8 +439,8 @@
                     <div class="sticker-grid">
                         @foreach (var sticker in stickers.Stickers)
                         {
-                            <img src="@sticker.MediaPath" 
-                                 alt="Sticker" 
+                            <img src="@sticker.MediaPath"
+                                 alt="Sticker"
                                  class="sticker-item"
                                  @onclick="() => SelectSticker(sticker)" />
                         }
@@ -451,21 +452,21 @@
                 }
             </div>
         }
-        
+
         <div class="comment-input-wrapper">
             <button class="media-toggle-btn" @onclick="ToggleStickerPanel">
                 @(showStickerPanel ? "📝" : "😀")
             </button>
-            
-            <textarea class="comment-input" 
-                      @bind="commentContent" 
+
+            <textarea class="comment-input"
+                      @bind="commentContent"
                       @onkeydown="HandleCommentKeyDown"
-                      placeholder="@GetCommentPlaceholder()" 
+                      placeholder="@GetCommentPlaceholder()"
                       rows="1"
                       disabled="@isSubmittingComment"></textarea>
-            
-            <button class="comment-submit-btn" 
-                    @onclick="SubmitComment" 
+
+            <button class="comment-submit-btn"
+                    @onclick="SubmitComment"
                     disabled="@(isSubmittingComment || (string.IsNullOrWhiteSpace(commentContent) && selectedSticker == null))">
                 @if (isSubmittingComment)
                 {
@@ -482,9 +483,9 @@
 
 @code {
 
-    [Parameter] 
+    [Parameter]
     public Guid PostId { get; set; }
-    [Parameter] 
+    [Parameter]
     public string? CommentId { get; set; }
 
     private BasePost? post;
@@ -497,18 +498,18 @@
     private StickerPack? stickers;
     private MediaDto? selectedSticker;
     private Dictionary<Guid, bool?> commentSupportStatus = new();
-    
+
     protected override async Task OnInitializedAsync()
     {
         // Handle Telegram URL parameters
         await HandleTelegramUrl();
-        
+
         // Load post and comments
         await LoadPostAndComments();
-        
-   
-            await LoadStickers();
-        
+
+
+        await LoadStickers();
+
     }
 
     protected override async Task OnParametersSetAsync()
@@ -525,7 +526,7 @@
         {
             var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
             var query = HttpUtility.ParseQueryString(uri.Query);
-            
+
             // Handle Telegram mini app start parameter
             // Docs: https://docs.telegram-mini-apps.com/platform/start-parameter
             if (query["tgWebAppStartParam"] != null)
@@ -553,7 +554,7 @@
         {
             // Load post
             post = await ApiService.PostService.GetPost(PostId);
-            
+
             if (post == null)
             {
                 isLoading = false;
@@ -563,13 +564,13 @@
 
             // Load comments
             var commentResult = await ApiService.CommentService.GetPostComments(new GetCommentDto
-            {
-                Count = 100,
-                Page = 1,
-                Id = PostId,
-                IsReply = false,
-                Sort = SortType.New
-            });
+                {
+                    Count = 100,
+                    Page = 1,
+                    Id = PostId,
+                    IsReply = false,
+                    Sort = SortType.New
+                });
 
             comments = commentResult.Data ?? new List<Comment>();
 
@@ -577,7 +578,7 @@
             foreach (var comment in comments)
             {
                 comment.Content = ProcessCommentContent(comment.Content);
-                
+
                 // Load replies if needed
                 if (comment.ReplyCount > 0)
                 {
@@ -607,13 +608,13 @@
         try
         {
             var replyResult = await ApiService.CommentService.GetPostComments(new GetCommentDto
-            {
-                Count = 50,
-                Page = 1,
-                Id = comment.Id,
-                IsReply = true,
-                Sort = SortType.New
-            });
+                {
+                    Count = 50,
+                    Page = 1,
+                    Id = comment.Id,
+                    IsReply = true,
+                    Sort = SortType.New
+                });
 
             comment.Replies = new ObservableCollection<Comment>(replyResult.Data ?? new List<Comment>());
 
@@ -645,7 +646,7 @@
     private async Task HighlightComment(Guid commentId)
     {
         var targetComment = comments.FirstOrDefault(c => c.Id == commentId);
-        
+
         if (targetComment == null)
         {
             // Load the specific comment if not in the initial load
@@ -669,7 +670,7 @@
     private string ProcessCommentContent(string? content)
     {
         if (string.IsNullOrEmpty(content)) return "";
-        
+
         // Convert #username mentions to markdown format
         string pattern = @"#(\w+)";
         string replacement = @"[@$1](user:$1)";
@@ -686,18 +687,18 @@
         try
         {
             var newComment = new Comment
-            {
-                Id = Guid.Empty,
-                PostId = PostId,
-                Content = string.IsNullOrWhiteSpace(commentContent) ? null : commentContent.Trim(),
-                PostMedia = selectedSticker,
-                IsReply = replyTarget != null,
-                RepliedTo = replyTarget?.Id,
-                DateCreated = DateTime.Now,
-                UserName = "current_user", // Will be set by API
-                Name = "Current User", // Will be set by API
-                SupportCount = 0
-            };
+                {
+                    Id = Guid.Empty,
+                    PostId = PostId,
+                    Content = string.IsNullOrWhiteSpace(commentContent) ? null : commentContent.Trim(),
+                    PostMedia = selectedSticker,
+                    IsReply = replyTarget != null,
+                    RepliedTo = replyTarget?.Id,
+                    DateCreated = DateTime.Now,
+                    UserName = "current_user", // Will be set by API
+                    Name = "Current User", // Will be set by API
+                    SupportCount = 0
+                };
 
             var submittedComment = await ApiService.CommentService.CommentOnPost(newComment);
 
@@ -748,7 +749,7 @@
         replyTarget = comment;
         showStickerPanel = false;
         StateHasChanged();
-        
+
         // Focus on comment input
         _ = Task.Run(async () =>
         {
@@ -781,11 +782,11 @@
         try
         {
             await ApiService.CommentService.UpvoteComment(comment.Id);
-            
+
             // Update local state
             var currentStatus = commentSupportStatus.GetValueOrDefault(comment.Id);
             commentSupportStatus[comment.Id] = currentStatus == true ? null : true;
-            
+
             StateHasChanged();
         }
         catch (Exception ex)
@@ -799,11 +800,11 @@
         try
         {
             await ApiService.CommentService.DownvoteComment(comment.Id);
-            
+
             // Update local state
             var currentStatus = commentSupportStatus.GetValueOrDefault(comment.Id);
             commentSupportStatus[comment.Id] = currentStatus == false ? null : false;
-            
+
             StateHasChanged();
         }
         catch (Exception ex)
@@ -822,7 +823,7 @@
 
     private void HandleMentionClick(string username)
     {
-       Navigation.NavigateTo($"/profile/{username}");
+        Navigation.NavigateTo($"/profile/{username}");
     }
 
     private string GetSupportClass(Guid commentId, bool isUpvote)
@@ -843,8 +844,8 @@
     {
         if (post != null)
         {
-            var preview = post.Content?.Length > 50 
-                ? post.Content.Substring(0, 50) + "..." 
+            var preview = post.Content?.Length > 50
+                ? post.Content.Substring(0, 50) + "..."
                 : post.Content ?? "Post";
             return $"{post.Name} - {preview} | Toxiq";
         }
@@ -855,8 +856,8 @@
     {
         if (post != null)
         {
-            return post.Content?.Length > 150 
-                ? post.Content.Substring(0, 150) + "..." 
+            return post.Content?.Length > 150
+                ? post.Content.Substring(0, 150) + "..."
                 : post.Content ?? "Check out this post on Toxiq";
         }
         return "Check out this post on Toxiq - Where Cool Kids Hangout";
@@ -888,4 +889,36 @@
         }
     }
 
+
+    private async Task HandleCommentVoteChanged(VoteButtons.VoteChangedEventArgs args)
+    {
+
+        var comment = comments.FirstOrDefault(c => c.Id == args.ContentId);
+
+        if (comment != null)
+
+        {
+            comment.SupportStatus = args.NewSupportStatus;
+
+            comment.SupportCount = args.NewSupportCount;
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleReplyVoteChanged(VoteButtons.VoteChangedEventArgs args)
+    {
+        // Update reply in your replies list
+        var reply = comments.FirstOrDefault(r => r.Id == args.ContentId);
+
+        if (reply != null)
+        {
+            reply.SupportStatus = args.NewSupportStatus;
+
+            reply.SupportCount = args.NewSupportCount;
+
+            StateHasChanged();
+        }
+    }
 }
+
