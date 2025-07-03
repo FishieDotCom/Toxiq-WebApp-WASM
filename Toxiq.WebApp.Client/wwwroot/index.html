@@ -9,8 +9,11 @@
     <link href="css/post-card.css" rel="stylesheet" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="Toxiq.WebApp.Client.styles.css" rel="stylesheet" />
+    <script src="//cdn.jsdelivr.net/npm/eruda"></script>
 
     <!-- Telegram WebApp Script - Load before our scripts -->
+    <script>eruda.init()</script>
+
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
@@ -40,35 +43,41 @@
                 color: white;
                 animation: pulse 2s ease-in-out infinite alternate;
             ">
-                T
+                <svg width="80px" height="80px" viewBox="0 0 456 456" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M 176.787 124.415 C 170.454 118.782 160.753 119.349 155.118 125.69 C 149.484 132.03 150.052 141.732 156.392 147.367 C 196.752 183.236 259.249 183.236 299.602 147.367 C 305.942 141.732 306.511 132.03 300.876 125.69 C 295.25 119.349 285.54 118.782 279.207 124.415 C 250.484 149.946 205.518 149.946 176.787 124.415 Z" style="fill: rgb(227, 227, 227);" transform="matrix(1, 0, 0, 1, 0, 1.4210854715202004e-14)" />
+                    <path d="M 177.102 331.305 C 203.891 306.143 252.104 306.143 278.9 331.305 C 285.079 337.107 294.797 336.801 300.6 330.622 C 306.402 324.442 306.096 314.726 299.917 308.921 C 261.306 272.669 194.688 272.669 156.086 308.921 C 149.899 314.726 149.599 324.434 155.402 330.622 C 161.205 336.801 170.915 337.107 177.102 331.305 Z" style="fill: rgb(227, 227, 227);" transform="matrix(1, 0, 0, 1, 0, 1.4210854715202004e-14)" />
+                    <path d="M 330.62 155.403 C 336.799 161.207 337.107 170.916 331.304 177.104 C 306.141 203.892 306.141 252.105 331.304 278.902 C 337.107 285.081 336.799 294.799 330.62 300.601 C 324.434 306.404 314.724 306.097 308.921 299.918 C 272.667 261.308 272.667 194.688 308.921 156.086 C 314.724 149.9 324.434 149.6 330.62 155.403 Z" style="fill: rgb(227, 227, 227);" transform="matrix(1, 0, 0, 1, 0, 1.4210854715202004e-14)" />
+                    <path d="M 147.081 156.086 C 141.278 149.9 131.56 149.6 125.381 155.403 C 119.195 161.207 118.895 170.916 124.699 177.104 C 149.853 203.892 149.853 252.105 124.699 278.902 C 118.895 285.081 119.195 294.799 125.381 300.601 C 131.56 306.404 141.278 306.097 147.081 299.918 C 183.327 261.308 183.327 194.688 147.081 156.086 Z" style="fill: rgb(227, 227, 227);" transform="matrix(1, 0, 0, 1, 0, 1.4210854715202004e-14)" />
+                </svg>
+
             </div>
             <div style="text-align: center;">
-                <h2 style="margin: 0; font-size: 24px; font-weight: 600;">Loading Toxiq</h2>
+                <h2 style="margin: 0; font-size: 24px; font-weight: 600;">Loading Ashi</h2>
                 <p style="margin: 8px 0 0 0; color: #acacac; font-size: 14px;">Where Cool Kids Hangout</p>
+            </div>
+            <style>
+                @keyframes spin {
+                    0% {
+                        transform: rotate(0deg);
+                    }
+
+                    100% {
+                        transform: rotate(360deg);
+                    }
+                }
+
+                @keyframes pulse {
+                    0% {
+                        transform: scale(1);
+                    }
+
+                    100% {
+                        transform: scale(1.05);
+                    }
+                }
+            </style>
         </div>
-        <style>
-            @keyframes spin {
-                0% {
-                    transform: rotate(0deg);
-                }
-
-                100% {
-                    transform: rotate(360deg);
-                }
-            }
-
-            @keyframes pulse {
-                0% {
-                    transform: scale(1);
-                }
-
-                100% {
-                    transform: scale(1.05);
-                }
-            }
-        </style>
     </div>
-        </div>
     <div id="blazor-error-ui" style="
         background: #b32121;
         color: white;

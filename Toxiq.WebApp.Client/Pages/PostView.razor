@@ -329,7 +329,7 @@
             {
                 @foreach (var comment in comments)
                 {
-                    <div class="comment-item @(comment.IsReply.Value ? "reply" : "")">
+                    <div class="comment-item @(comment.IsReply.GetValueOrDefault(false) ? "reply" : "")">
                         <div class="comment-header">
                             <span class="comment-author">@comment.Name</span>
                             <span class="comment-username">@@@comment.UserName</span>
@@ -423,7 +423,7 @@
 </div>
 
 <!-- Comment Input (Fixed at bottom) -->
-@if (AuthService.IsAuthenticated().Value && post != null)
+@if (AuthService.IsAuthenticated().GetValueOrDefault(false) && post != null)
 {
     <div class="comment-input-container">
         @if (replyTarget != null)

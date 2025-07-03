@@ -91,7 +91,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                         if (!string.IsNullOrEmpty(loginResult.token) && loginResult.token != "NA")
                         {
                             // Store token persistently
-                            await _localStorage.SetItemAsStringAsync("auth_token", loginResult.token);
+                            await _localStorage.SetItemAsStringAsync("token", loginResult.token);
 
                             // Get user profile
                             var userProfile = await _apiService.UserService.GetMe();
@@ -156,7 +156,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             try
             {
                 // Clear stored token
-                await _localStorage.RemoveItemAsync("auth_token");
+                await _localStorage.RemoveItemAsync("token");
 
                 // Close Telegram WebApp if needed
                 await _jsRuntime.InvokeVoidAsync("telegramAuthUtils.closeWebApp").ConfigureAwait(false);

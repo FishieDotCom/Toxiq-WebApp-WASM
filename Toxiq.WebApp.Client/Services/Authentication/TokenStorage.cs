@@ -14,7 +14,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
     {
         private readonly ILocalStorageService _localStorage;
         private readonly ILogger<LocalStorageTokenStorage> _logger;
-        private const string TokenKey = "auth_token";
+        private const string TokenKey = "token";
 
         public LocalStorageTokenStorage(ILocalStorageService localStorage, ILogger<LocalStorageTokenStorage> logger)
         {
