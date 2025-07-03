@@ -53,6 +53,7 @@ namespace Toxiq.WebApp.Client
             builder.Services.AddScoped<IApiService, OptimizedApiService>();
 
             // Authentication
+            builder.Services.AddScoped<IAuthenticationProvider, TelegramAuthProvider>();
             builder.Services.AddScoped<IAuthenticationProvider, ManualAuthProvider>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 

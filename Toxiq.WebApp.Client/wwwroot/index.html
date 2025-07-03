@@ -1,6 +1,6 @@
-<!-- Toxiq.WebApp.Client/wwwroot/index.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
@@ -10,17 +10,8 @@
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="Toxiq.WebApp.Client.styles.css" rel="stylesheet" />
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
-
-    <!-- Progressive Web App -->
-    <meta name="theme-color" content="#0e0e0e" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
-    <title>Toxiq - Where Cool Kids Hangout</title>
+    <!-- Telegram WebApp Script - Load before our scripts -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
 <body>
@@ -54,17 +45,7 @@
             <div style="text-align: center;">
                 <h2 style="margin: 0; font-size: 24px; font-weight: 600;">Loading Toxiq</h2>
                 <p style="margin: 8px 0 0 0; color: #acacac; font-size: 14px;">Where Cool Kids Hangout</p>
-            </div>
-            <div style="
-                width: 40px;
-                height: 40px;
-                border: 3px solid #404040;
-                border-top: 3px solid #d600aa;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            "></div>
         </div>
-
         <style>
             @keyframes spin {
                 0% {
@@ -87,7 +68,7 @@
             }
         </style>
     </div>
-
+        </div>
     <div id="blazor-error-ui" style="
         background: #b32121;
         color: white;
@@ -126,6 +107,31 @@
             }
         };
 
+        // Enhanced platform detection that returns the object directly
+        window.getPlatformInfo = function () {
+            return window.toxiqPlatform.detect();
+        };
+
+        // Legacy token functions for compatibility
+        window.setToken = function (token) {
+            try {
+                localStorage.setItem('auth_token', token);
+                console.log('Token set in localStorage');
+            } catch (error) {
+                console.error('Error setting token:', error);
+            }
+        };
+
+        window.getToken = function () {
+            try {
+                const token = localStorage.getItem('auth_token');
+                return token || '';
+            } catch (error) {
+                console.error('Error getting token:', error);
+                return '';
+            }
+        };
+
         // Performance optimization: preload critical resources
         window.addEventListener('load', function () {
             // Remove loading indicator after app loads
@@ -147,6 +153,28 @@
             dismissBtn?.addEventListener('click', function () {
                 errorUI.style.display = 'none';
             });
+        });
+
+        // Auto-detection and logging for Telegram WebApp
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('Toxiq WebApp starting...');
+
+            if (window.Telegram && window.Telegram.WebApp) {
+                console.log('Running in Telegram WebApp');
+                console.log('Telegram WebApp version:', window.Telegram.WebApp.version);
+                console.log('Platform:', window.Telegram.WebApp.platform);
+
+                // Configure Telegram WebApp
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+
+                // Apply theme
+                if (window.Telegram.WebApp.colorScheme === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } else {
+                console.log('Running in standard web browser');
+            }
         });
     </script>
 </body>

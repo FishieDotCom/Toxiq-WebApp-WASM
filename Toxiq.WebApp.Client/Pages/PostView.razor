@@ -1,4 +1,7 @@
-﻿@page "/post/{PostId:guid}"
+﻿@page "/posts/"
+@page "/posts/{PostId:guid}"
+@page "/posts/{PostId:guid}/{CommentId?}"
+@page "/post/{PostId:guid}"
 @page "/post/{PostId:guid}/{CommentId?}"
 @using Microsoft.AspNetCore.Components
 @using System.Text.RegularExpressions
@@ -21,7 +24,7 @@
     <meta name="description" content="@GetMetaDescription()">
     <meta name="og:description" content="@GetMetaDescription()">
     <meta name="og:title" content="@GetPageTitle()">
-    <meta property="og:site_name" content="Toxiq">
+    <meta property="og:site_name" content="Ashi">
     <meta name="og:image" content="https://toxiq.xyz/images/social-preview-post.jpg">
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
@@ -420,7 +423,7 @@
 </div>
 
 <!-- Comment Input (Fixed at bottom) -->
-@if (AuthService.IsAuthenticatedAsync().Result && post != null)
+@if (AuthService.IsAuthenticated().Value && post != null)
 {
     <div class="comment-input-container">
         @if (replyTarget != null)
@@ -502,7 +505,7 @@
     protected override async Task OnInitializedAsync()
     {
         // Handle Telegram URL parameters
-        await HandleTelegramUrl();
+        HandleTelegramUrl();
 
         // Load post and comments
         await LoadPostAndComments();
@@ -520,7 +523,7 @@
         }
     }
 
-    private async Task HandleTelegramUrl()
+    private void HandleTelegramUrl()
     {
         try
         {

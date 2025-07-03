@@ -1,0 +1,230 @@
+﻿@* Toxiq.WebApp.Client/Components/AuthStatus.razor *@
+@using System.Text.Json
+@using Toxiq.WebApp.Client.Services.Authentication
+@inject IAuthenticationService AuthService
+@inject IJSRuntime JSRuntime
+@inject ILogger<AuthStatus> Logger
+@implements IDisposable
+
+<div class="auth-status">
+    @if (isLoading)
+    {
+        <div class="auth-loading">
+            <div class="loading-spinner"></div>
+            <span>Checking authentication...</span>
+        </div>
+    }
+    else if (AuthService.IsAuthenticatedAsync().Result)
+    {
+        <div class="auth-success">
+            <span class="auth-icon">✅</span>
+            <span>Welcome, @(AuthService.GetCurrentUserAsync().Result?.UserName ?? "User")!</span>
+            <button class="logout-btn" @onclick="HandleLogout">Logout</button>
+        </div>
+    }
+    else
+    {
+        <div class="auth-required">
+            <span class="auth-icon">🔐</span>
+            <span>@authMessage</span>
+            @if (isTelegramWebApp)
+            {
+                <button class="retry-btn" @onclick="RetryAutoLogin">Retry Telegram Login</button>
+            }
+        </div>
+    }
+</div>
+
+<style>
+    .auth-status {
+        padding: 12px 16px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        margin-bottom: 16px;
+    }
+
+    .auth-loading {
+        background: rgba(255, 193, 7, 0.1);
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        color: #ffc107;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .auth-success {
+        background: rgba(40, 167, 69, 0.1);
+        border: 1px solid rgba(40, 167, 69, 0.3);
+        color: #28a745;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .auth-required {
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.3);
+        color: #dc3545;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .loading-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid transparent;
+        border-top: 2px solid currentColor;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    .logout-btn, .retry-btn {
+        background: transparent;
+        border: 1px solid currentColor;
+        color: inherit;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: background-color 0.2s ease;
+    }
+
+        .logout-btn:hover, .retry-btn:hover {
+            background: currentColor;
+            color: white;
+        }
+
+    .auth-icon {
+        font-size: 16px;
+    }
+
+    @@keyframes spin {
+        0%
+
+    {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private bool isTelegramWebApp = false;
+    private string authMessage = "Authentication required";
+
+    protected override async Task OnInitializedAsync()
+    {
+        //AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+        try
+        {
+            // Check if we're in a Telegram WebApp
+            var platformInfo = await JSRuntime.InvokeAsync<JsonElement>("getPlatformInfo");
+            isTelegramWebApp = platformInfo.TryGetProperty("isTelegramMiniApp", out var prop) && prop.GetBoolean();
+
+            Logger.LogInformation("Platform detection: Telegram WebApp = {IsTelegramWebApp}", isTelegramWebApp);
+
+            // Attempt auto-login
+            await TryAutoLogin();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during authentication initialization");
+            authMessage = "Authentication error occurred";
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task TryAutoLogin()
+    {
+        try
+        {
+            Logger.LogInformation("Attempting auto-login...");
+            var result = await AuthService.TryAutoLoginAsync();
+
+            if (result.IsSuccess)
+            {
+                authMessage = "Auto-login successful";
+                Logger.LogInformation("Auto-login successful for user: {Username}", result.UserProfile?.UserName);
+            }
+            else
+            {
+                authMessage = isTelegramWebApp
+                    ? "Telegram auto-login not available"
+                    : "Please log in to continue";
+                Logger.LogInformation("Auto-login failed: {Error}", result.ErrorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Auto-login error");
+            authMessage = "Auto-login failed";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RetryAutoLogin()
+    {
+        isLoading = true;
+        authMessage = "Retrying authentication...";
+        StateHasChanged();
+
+        await TryAutoLogin();
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            await AuthService.LogoutAsync();
+            authMessage = "Logged out successfully";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error during logout");
+            authMessage = "Logout error occurred";
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnAuthenticationStateChanged(bool isAuthenticated)
+    {
+        InvokeAsync(() =>
+        {
+            if (isAuthenticated)
+            {
+                authMessage = "Authentication successful";
+            }
+            else
+            {
+                authMessage = "Authentication required";
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        //AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

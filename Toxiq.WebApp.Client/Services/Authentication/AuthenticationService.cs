@@ -6,6 +6,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
     public interface IAuthenticationService
     {
         ValueTask<bool> IsAuthenticatedAsync();
+        bool? IsAuthenticated();
         ValueTask<AuthenticationResult> LoginAsync(string inviteCode);
         ValueTask<AuthenticationResult> TryAutoLoginAsync();
         ValueTask LogoutAsync();
@@ -57,6 +58,11 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             }
 
             return _isAuthenticated ?? false;
+        }
+
+        public bool? IsAuthenticated()
+        {
+            return _isAuthenticated;
         }
 
         private async ValueTask InitializeAsync()
