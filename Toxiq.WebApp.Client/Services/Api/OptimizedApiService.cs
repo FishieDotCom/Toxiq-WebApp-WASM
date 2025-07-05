@@ -221,10 +221,10 @@ namespace Toxiq.WebApp.Client.Services.Api
           await _api.PostAsync<object>("Post/Publish", post);
 
         public async ValueTask Upvote(Guid id) =>
-           await _api.GetAsync<object>($"Post/Upvote/{id}");
+           await _api.GetRawAsync($"Post/Upvote/{id}");
 
         public async ValueTask Downvote(Guid id) =>
-           await _api.GetAsync<object>($"Post/Downvote/{id}");
+           await _api.GetRawAsync($"Post/Downvote/{id}");
     }
 
     internal class NotesServiceImpl : INotesService

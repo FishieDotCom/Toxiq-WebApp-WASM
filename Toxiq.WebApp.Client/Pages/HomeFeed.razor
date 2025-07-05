@@ -4,12 +4,15 @@
 @using Toxiq.WebApp.Client.Services.Authentication
 @using Toxiq.WebApp.Client.Services.Feed
 @using Toxiq.WebApp.Client.Components
+@using Toxiq.WebApp.Client.Services.JavaScript
 @inject IAuthenticationService AuthService
 @inject IFeedService FeedService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject ITelegramAuthJsInvoker TelegramAuth
 
-<PageTitle>Toxiq</PageTitle>
+
+<PageTitle>Ashi</PageTitle>
 
 <div class="feed-container">
     @if (isAuthenticated)
@@ -18,7 +21,7 @@
         @* <div class="feed-header">
             <div class="header-brand">
                 <Logo Width="32" Height="32" Color="var(--white)" />
-                <h1 class="header-title">Toxiq</h1>
+                <h1 class="header-title">Ashi</h1>
             </div>
 
             <div class="header-actions">
@@ -449,7 +452,7 @@
 
         // Check initial authentication state
         await CheckAuthenticationState();
-
+        await TelegramAuth.HideBackButtonAsync();
         if (isAuthenticated)
         {
             await LoadInitialFeed();
@@ -550,7 +553,7 @@
 
     private async Task HandlePostClick(BasePost post)
     {
-        Navigation.NavigateTo($"/post/{post.Id}");
+        Navigation.NavigateTo($"/posts/{post.Id}");
     }
 
     private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)

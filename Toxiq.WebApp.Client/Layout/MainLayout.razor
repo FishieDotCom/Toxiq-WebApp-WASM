@@ -12,9 +12,9 @@
         @if (isAuthenticated)
         {
             <header class="feed-header">
-                <div class="header-brand">
-                    <Logo Width="40" Height="40" Color="var(--white)" />
-                    <h1 class="header-title">Ashi</h1>
+                <div class="header-brand" @onclick="GoHome">
+                    <Logo Width="40" Height="40" Color="var(--white)"  />
+                    <h1 class="header-title" @onclick="GoHome">Ashi</h1>
                 </div>
 
                 <div class="header-actions">
@@ -80,6 +80,11 @@
         {
             Navigation.NavigateTo($"/profile/{currentUser.UserName}");
         }
+    }
+
+    private void GoHome()
+    {
+        Navigation.NavigateTo($"/");
     }
 
     public void Dispose()

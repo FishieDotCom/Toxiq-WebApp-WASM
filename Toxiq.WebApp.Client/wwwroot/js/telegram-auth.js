@@ -1,7 +1,4 @@
-﻿// Toxiq.WebApp.Client/wwwroot/js/telegram-auth.js
-// Telegram WebApp Authentication Utilities for Blazor WASM
-
-window.telegramAuthUtils = {
+﻿window.telegramAuthUtils = {
 
     // Check if we have valid Telegram WebApp init data
     hasValidInitData: function () {
@@ -72,6 +69,7 @@ window.telegramAuthUtils = {
         try {
             if (window.Telegram && window.Telegram.WebApp) {
                 window.Telegram.WebApp.BackButton.show();
+                window.Telegram.WebApp.BackButton.onClick(window.handleBackButton);
                 console.log('Telegram back button shown');
             }
         } catch (error) {
@@ -256,6 +254,14 @@ window.LSget = function (key) {
     } catch (error) {
         console.error('Error getting localStorage:', error);
         return '';
+    }
+};
+
+window.handleBackButton = function () {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = '/';
     }
 };
 

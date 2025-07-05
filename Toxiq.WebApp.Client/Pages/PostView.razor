@@ -6,17 +6,22 @@
 @using Microsoft.AspNetCore.Components
 @using System.Text.RegularExpressions
 @using System.Collections.ObjectModel
+@using Microsoft.FluentUI.AspNetCore.Components
 @using Toxiq.Mobile.Dto
 @using Toxiq.WebApp.Client.Services.Authentication
 @using Toxiq.WebApp.Client.Services.Feed
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
 @using Toxiq.WebApp.Client.Services.Api
 @using Toxiq.WebApp.Client.Components
 @using System.Web
+@using Toxiq.WebApp.Client.Services.JavaScript
 @inject IFeedService FeedService
 @inject IApiService ApiService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject IAuthenticationService AuthService
+@inject ITelegramAuthJsInvoker TelegramAuth
+
 
 <PageTitle>@GetPageTitle()</PageTitle>
 
@@ -458,7 +463,14 @@
 
         <div class="comment-input-wrapper">
             <button class="media-toggle-btn" @onclick="ToggleStickerPanel">
-                @(showStickerPanel ? "📝" : "😀")
+                @if (showStickerPanel)
+                {
+                    <text>📝</text>
+                }
+                else
+                {
+                    <FluentIcon Value="@(new Icons.Regular.Size24.Emoji().WithColor("#ffffff"))" />
+                }
             </button>
 
             <textarea class="comment-input"
@@ -473,11 +485,11 @@
                     disabled="@(isSubmittingComment || (string.IsNullOrWhiteSpace(commentContent) && selectedSticker == null))">
                 @if (isSubmittingComment)
                 {
-                    <span>⟳</span>
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Send().WithColor("#ffffff"))" />
                 }
                 else
                 {
-                    <span>↑</span>
+                    <FluentIcon Value="@(new Icons.Regular.Size16.Send().WithColor("#ffffff"))" />
                 }
             </button>
         </div>
@@ -506,6 +518,7 @@
     {
         // Handle Telegram URL parameters
         HandleTelegramUrl();
+       await TelegramAuth.ShowBackButtonAsync();
 
         // Load post and comments
         await LoadPostAndComments();

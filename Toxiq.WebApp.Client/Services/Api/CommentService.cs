@@ -179,7 +179,7 @@ namespace Toxiq.WebApp.Client.Services.Api
                     IsSupport = true
                 };
 
-                var response = await _api.PostRawAsync("Comment/Upvote", voteDto);
+                var response = await _api.GetRawAsync($"Comment/Upvote/{commentId}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -203,7 +203,7 @@ namespace Toxiq.WebApp.Client.Services.Api
                     IsSupport = false
                 };
 
-                var response = await _api.PostRawAsync("Comment/Downvote", voteDto);
+                var response = await _api.GetRawAsync($"Comment/Downvote/{commentId}");
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
@@ -221,9 +221,9 @@ namespace Toxiq.WebApp.Client.Services.Api
         {
             try
             {
-                var response = await _api.GetRawAsync($"Comment/Deletevote/{commentId}");
+                var response = await _api.GetRawAsync($"Comment/Downvote/{commentId}");
                 //return response.IsSuccessStatusCode;
-                return false; // Placeholder for actual delete logic
+                return response.IsSuccessStatusCode; // Placeholder for actual delete logic
 
             }
             catch (Exception ex)

@@ -75,7 +75,7 @@
                     @onclick="HandleCommentClick"
                     @onclick:stopPropagation="true">
                 <div class="btn-icon">
-                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Comment())" />
+                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Comment().WithColor("#ffffff"))" />
                 </div>
                 <span class="btn-text">Comment</span>
             </button>
@@ -85,7 +85,7 @@
                     @onclick="HandleShare"
                     @onclick:stopPropagation="true">
                 <div class="btn-icon">
-                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share())" />
+                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share().WithColor("#ffffff"))" />
                 </div>
                 <span class="btn-text">Share</span>
             </button>
@@ -292,13 +292,13 @@
         }
         else
         {
-            Navigation.NavigateTo($"/post/{Post.Id}");
+            Navigation.NavigateTo($"/posts/{Post.Id}");
         }
     }
 
     private async Task HandleCommentClick()
     {
-        Navigation.NavigateTo($"/post/{Post.Id}#comments");
+        Navigation.NavigateTo($"/posts/{Post.Id}#comments");
     }
 
     private async Task HandleProfileClick()
@@ -310,7 +310,7 @@
     {
         try
         {
-            var postUrl = $"{Navigation.BaseUri}post/{Post.Id}";
+            var postUrl = $"{Navigation.BaseUri}posts/{Post.Id}";
             var shareText = Post.Content?.Length > 100
                 ? Post.Content.Substring(0, 100) + "..."
                 : Post.Content;
