@@ -1,0 +1,570 @@
+﻿@page "/changeColor"
+@page "/edit-profile"
+@page "/edit-profile/{CanGoBack:bool}"
+@using Toxiq.Mobile.Dto
+@inject IApiService ApiService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Edit Profile</PageTitle>
+
+<style>
+    .edit-profile-container {
+        background-color: var(--off-black);
+        padding: 20px;
+        display: grid;
+        grid-template-rows: 1fr auto;
+        gap: 15px;
+    }
+
+    .edit-profile-header {
+        margin-bottom: 0;
+        font-weight: bold;
+        font-size: 20px;
+        color: white;
+    }
+
+    .profile-preview-container {
+        height: 170px;
+        border-radius: 20px;
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 15px;
+    }
+
+    .profile-preview-content {
+        padding: 20px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .profile-username {
+        font-weight: bold;
+        font-size: 20px;
+        color: white;
+        text-align: start;
+    }
+
+    .bio-input {
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 16px;
+        resize: none;
+        outline: none;
+        placeholder-color: rgba(255, 255, 255, 0.7);
+        width: 100%;
+        height: 100px;
+        flex: 1;
+    }
+
+        .bio-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+    .form-section {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .form-label {
+        font-weight: bold;
+        color: white;
+        font-size: 16px;
+    }
+
+    .date-picker-container {
+        background-color: var(--surface-color);
+        border-radius: 8px;
+        padding: 15px;
+        border: 1px solid var(--border-color);
+    }
+
+    .date-inputs {
+        display: flex; /* Instead of grid */
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 10px;
+    }
+
+    .date-select {
+        background-color: var(--input-background);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px;
+        color: white;
+        font-size: 16px;
+    }
+
+        .date-select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+    .gender-select {
+        background-color: var(--input-background);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 12px;
+        color: white;
+        font-size: 16px;
+        width: 150px;
+    }
+
+        .gender-select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+    .color-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .color-selector {
+        display: flex;
+        gap: 10px;
+        flex: 1;
+        overflow-x: auto;
+        padding: 5px 0;
+    }
+
+    .color-option {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.selected {
+            border-color: white;
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+    .continue-button {
+        background-color: var(--selected-color, #5a189a);
+        border: none;
+        border-radius: 25px;
+        padding: 15px 30px;
+        color: white;
+        font-weight: bold;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        min-width: 120px;
+    }
+
+        .continue-button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .continue-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s ease-in-out infinite;
+    }
+
+    .error-toast {
+        position: fixed;
+        bottom: 100px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #ff4444;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 25px;
+        z-index: 1000;
+        animation: slideUp 0.3s ease;
+    }
+
+    @@keyframes spin {
+        to
+
+    {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    @@keyframes slideUp {
+        from
+
+    {
+        transform: translate(-50%, 100%);
+    }
+
+    to {
+        transform: translate(-50%, 0);
+    }
+
+    }
+
+    /* Mobile responsive */
+    @@media (max-width: 768px) {
+        .edit-profile-container
+
+    {
+        padding: 15px;
+    }
+
+    .date-inputs {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .color-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .continue-button {
+        width: 100%;
+    }
+
+    }
+</style>
+
+<div class="edit-profile-container centered-container">
+    @if (isLoading && profile == null)
+    {
+        <!-- Loading State -->
+        <div style="display: flex; justify-content: center; align-items: center; height: 50vh;">
+            <div class="loading-spinner"></div>
+        </div>
+    }
+    else
+    {
+        <div class="form-section">
+            <!-- Header - only show when not going back (mirrors mobile app logic) -->
+            @if (!CanGoBack)
+            {
+                <h1 class="edit-profile-header">Edit Profile</h1>
+            }
+
+            <!-- Profile Preview Header (mirrors mobile XAML structure) -->
+            <div class="profile-preview-container" style="background-color: @selectedColor">
+                <div class="profile-preview-content">
+                    <div class="profile-username">@@@(profile?.UserName ?? "Username")</div>
+                    <textarea class="bio-input"
+                              placeholder="Enter your Bio"
+                              @bind="profile.Bio"
+                              maxlength="64"
+                              rows="4"></textarea>
+                </div>
+            </div>
+
+            <!-- Date of Birth (mirrors mobile CustomDateDropdownControl) -->
+            <div class="form-group">
+                <label class="form-label">Date of birth</label>
+                <div class="date-picker-container">
+                    <div class="date-inputs">
+                        <select class="date-select" @bind="selectedMonth">
+                            <option value="0">Month</option>
+                            @for (int i = 1; i <= 12; i++)
+                            {
+                                <option value="@i">@(new DateTime(2000, i, 1).ToString("MMMM"))</option>
+                            }
+                        </select>
+
+                        <select class="date-select" @bind="selectedDay">
+                            <option value="0">Day</option>
+                            @for (int i = 1; i <= GetDaysInMonth(); i++)
+                            {
+                                <option value="@i">@i</option>
+                            }
+                        </select>
+
+                        <select class="date-select" @bind="selectedYear">
+                            <option value="0">Year</option>
+                            @for (int i = DateTime.Now.Year - 13; i >= 1950; i--)
+                            {
+                                <option value="@i">@i</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gender Selection (mirrors mobile ComboBoxEdit) -->
+            <div class="form-group">
+                <label class="form-label">Gender</label>
+                <select class="gender-select" @bind="selectedGender">
+                    <option value="">Select Gender</option>
+                    @foreach (var gender in genderList)
+                    {
+                        <option value="@gender">@gender</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <!-- Bottom Toolbar (mirrors mobile DXToolbar) -->
+        <div class="color-toolbar">
+            <!-- Color Selector (mirrors mobile ToolbarColorSelector) -->
+            <div class="color-selector">
+                @foreach (var color in colorList)
+                {
+                    <div class="color-option @(selectedColor == color ? "selected" : "")"
+                         style="background-color: @color"
+                         @onclick="() => SelectColor(color)">
+                    </div>
+                }
+            </div>
+
+            <!-- Continue Button (mirrors mobile ToolbarButton) -->
+            <button class="continue-button"
+                    style="background-color: @selectedColor"
+                    @onclick="SubmitProfile"
+                    disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <div class="loading-spinner"></div>
+                }
+                else
+                {
+                    <span>Continue</span>
+                }
+            </button>
+        </div>
+    }
+
+    <!-- Error Toast (mirrors mobile Toast.Make functionality) -->
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-toast">
+            @errorMessage
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool CanGoBack { get; set; } = false;
+
+    // State properties (mirrors mobile view model properties)
+    private UserProfile profile = new UserProfile();
+    private string[] colorList = Array.Empty<string>();
+    private string selectedColor = "#8a8a8a";
+    private string profileLetter = "";
+    private bool isLoading = true;
+    private List<string> genderList = new List<string>() { "♂️ Male", "♀️ Female" };
+    private string selectedGender = "";
+    private string errorMessage = "";
+
+    // Date selection properties (mirrors mobile date handling)
+    private int selectedMonth = 0;
+    private int selectedDay = 0;
+    private int selectedYear = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfile();
+    }
+
+    // Load method (mirrors mobile LoadCommand)
+    private async Task LoadProfile()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Load user profile (mirrors mobile OfflineDB.UserProfile)
+            profile = await ApiService.UserService.GetMe();
+
+            if (profile != null)
+            {
+                // Set selected color (mirrors mobile SelectedColor logic)
+                if (!string.IsNullOrEmpty(profile.ProfileColor))
+                {
+                    selectedColor = profile.ProfileColor;
+                }
+
+                // Set profile letter (mirrors mobile ProfileLetter logic)
+                if (!string.IsNullOrEmpty(profile.UserName))
+                {
+                    profileLetter = profile.UserName.ToCharArray()[0].ToString();
+                }
+
+                // Set date values (mirrors mobile date handling)
+                if (profile.PubDateOfBirth != DateTime.MinValue)
+                {
+                    selectedYear = profile.PubDateOfBirth.Year;
+                    selectedMonth = profile.PubDateOfBirth.Month;
+                    selectedDay = profile.PubDateOfBirth.Day;
+                }
+
+                // Set gender (mirrors mobile gender selection)
+                if (profile.Gender == Gender.Male)
+                    selectedGender = "♂️ Male";
+                else if (profile.Gender == Gender.Female)
+                    selectedGender = "♀️ Female";
+            }
+
+            // Load colors (mirrors mobile ColorList loading)
+            await LoadColors();
+
+            isLoading = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            ShowError("Failed to load profile");
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadColors()
+    {
+        try
+        {
+            // Load colors from API (mirrors mobile apiService.ColorService.GetColors())
+            var colors = await ApiService.ColorService.GetColors();
+            colorList = colors.Select(c => c.Hex).ToArray();
+        }
+        catch
+        {
+            // Fallback colors (mirrors mobile app default colors)
+            colorList = new string[]
+            {
+                "#8a8a8a", "#5a189a", "#800e13", "#375191", "#ff4bb4", "#588157"
+            };
+        }
+    }
+
+    // Color selection (mirrors mobile ColorUpdate command)
+    private void SelectColor(string color)
+    {
+        selectedColor = color;
+        StateHasChanged();
+    }
+
+    // Gender selection (mirrors mobile GenderSelected command)
+    private void HandleGenderSelection()
+    {
+        if (selectedGender == "♂️ Male")
+            profile.Gender = Gender.Male;
+        else if (selectedGender == "♀️ Female")
+            profile.Gender = Gender.Female;
+    }
+
+    // Date handling utilities
+    private int GetDaysInMonth()
+    {
+        if (selectedYear > 0 && selectedMonth > 0)
+        {
+            return DateTime.DaysInMonth(selectedYear, selectedMonth);
+        }
+        return 31;
+    }
+
+    private void UpdateProfileDate()
+    {
+        if (selectedYear > 0 && selectedMonth > 0 && selectedDay > 0)
+        {
+            try
+            {
+                profile.PubDateOfBirth = new DateTime(selectedYear, selectedMonth, selectedDay);
+            }
+            catch
+            {
+                // Invalid date combination
+            }
+        }
+    }
+
+    // Submit method (mirrors mobile Submit command)
+    private async Task SubmitProfile()
+    {
+        try
+        {
+            isLoading = true;
+
+            // Validation (mirrors mobile validation logic)
+            if (string.IsNullOrEmpty(selectedColor))
+            {
+                ShowError("Select a Color");
+                return;
+            }
+
+            if (string.IsNullOrEmpty(selectedGender))
+            {
+                ShowError("Select Gender");
+                return;
+            }
+
+            var thisYear = DateTime.Now.Year;
+            UpdateProfileDate();
+
+            if (profile.PubDateOfBirth.Year == thisYear)
+            {
+                ShowError("Select a valid Date of birth");
+                return;
+            }
+
+            // Update profile properties
+            HandleGenderSelection();
+            profile.ProfileColor = selectedColor;
+
+            // Submit to API (mirrors mobile apiService.UserService.EditProfile)
+            await ApiService.UserService.EditProfile(profile);
+
+            // Navigation logic (mirrors mobile navigation)
+            if (CanGoBack)
+            {
+                Navigation.NavigateTo("/profile");
+            }
+            else
+            {
+                Navigation.NavigateTo("/");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.StackTrace);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // Error handling (mirrors mobile Toast.Make functionality)
+    private async Task ShowError(string message)
+    {
+        errorMessage = message;
+        StateHasChanged();
+
+        // Auto-hide error after 3 seconds
+        await Task.Delay(3000);
+        errorMessage = "";
+        StateHasChanged();
+    }
+}

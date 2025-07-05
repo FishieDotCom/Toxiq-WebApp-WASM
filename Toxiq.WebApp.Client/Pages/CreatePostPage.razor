@@ -1,0 +1,528 @@
+﻿@* Toxiq.WebApp.Client/Pages/CreatePost.razor *@
+@page "/create-post"
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Services.Api
+@using Toxiq.WebApp.Client.Services.Authentication
+@inject IApiService ApiService
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<div class="create-post-container">
+    <div class="create-post-header">
+        <h1 class="page-title">Create Post</h1>
+        <div class="header-spacer"></div>
+    </div>
+
+    <div class="create-post-content">
+        @if (IsLoading)
+        {
+            <div class="loading-overlay">
+                <div class="loading-spinner"></div>
+                <span class="loading-text">Posting...</span>
+            </div>
+        }
+
+        <!-- User Profile Section -->
+        <div class="user-profile-section">
+            <div class="user-info">
+                <span class="user-name">@Profile.Name</span>
+                <span class="user-username">@@@Profile.UserName</span>
+            </div>
+        </div>
+
+        <!-- Post Content Editor -->
+        <div class="post-editor-container" style="border-color: @SelectedColor">
+            <div class="post-editor-wrapper">
+                <textarea @ref="postTextArea"
+                         @bind="PostContent"
+                         @oninput="OnContentChanged"
+                         class="post-editor"
+                         placeholder="What's on your mind?"
+                         maxlength="512"
+                         rows="6"
+                         disabled="@IsLoading">
+                </textarea>
+                <div class="character-count">
+                    <span class="@(PostContent.Length > 400 ? "text-warning" : "")">
+                        @PostContent.Length/512
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Echo/Reply Section -->
+        @if (IsEcho && EchoPost != null)
+        {
+            <div class="echo-section">
+                <ReplyCard Post="@EchoPost" IsFullPost="false" />
+            </div>
+        }
+
+        <!-- Color Picker Section -->
+        <div class="color-picker-section">
+            <h3 class="color-picker-title">Choose Color</h3>
+            <div class="color-picker-grid">
+                @foreach (var color in ColorList)
+                {
+                    <div class="color-option @(IsSelectedColor(color) ? "selected" : "")"
+                         style="background-color: @color"
+                         @onclick="() => SelectColor(color)"
+                         title="@color">
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="btn btn-secondary" @onclick="GoBack" disabled="@IsLoading">
+                Cancel
+            </button>
+            <button class="btn btn-primary" @onclick="CreatePost" disabled="@(IsLoading || !CanPost)">
+                @if (IsLoading)
+                {
+                    <span class="btn-spinner"></span>
+                }
+                @if (EchoReply == ReplyType.Note)
+                {
+                    <span>Respond to Note</span>
+                }
+                else
+                {
+                    <span>Post</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, SupplyParameterFromQuery] public string? EchoPostId { get; set; }
+    [Parameter, SupplyParameterFromQuery] public bool IsEcho { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? EchoReplyType { get; set; }
+
+    private ElementReference postTextArea;
+    private UserProfile Profile = new();
+    private string PostContent = "";
+    private string[] ColorList = Array.Empty<string>();
+    private string SelectedColor = "#5a189a";
+    private bool IsLoading = false;
+    private BasePost? EchoPost;
+    private ReplyType EchoReply = ReplyType.Non;
+
+    private bool CanPost => !string.IsNullOrWhiteSpace(PostContent) && PostContent.Trim().Length > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfile();
+        await LoadColors();
+        await LoadEchoPost();
+        
+        // Focus on the text area after render
+        await Task.Delay(100);
+        await JSRuntime.InvokeVoidAsync("focusElement", postTextArea);
+    }
+
+    private async Task LoadProfile()
+    {
+        try
+        {
+            Profile = await AuthService.GetCurrentUserAsync() ?? new UserProfile();
+            SelectedColor = Profile.ProfileColor ?? "#5a189a";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading profile: {ex.Message}");
+        }
+    }
+
+    private async Task LoadColors()
+    {
+        try
+        {
+            var colors = await ApiService.ColorService.GetColors();
+            ColorList = colors.Select(c => c.Hex).ToArray();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading colors: {ex.Message}");
+            // Fallback colors matching mobile app defaults
+            ColorList = new[]
+            {
+                "#5a189a", "#1e40af", "#059669", "#ea580c", 
+                "#dc2626", "#db2777", "#0891b2", "#7c3aed"
+            };
+        }
+    }
+
+    private async Task LoadEchoPost()
+    {
+        if (!IsEcho || string.IsNullOrEmpty(EchoPostId))
+            return;
+
+        try
+        {
+            if (Guid.TryParse(EchoPostId, out var postId))
+            {
+                EchoPost = await ApiService.PostService.GetPost(postId);
+                
+                // Parse echo reply type
+                if (Enum.TryParse<ReplyType>(EchoReplyType, out var replyType))
+                {
+                    EchoReply = replyType;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading echo post: {ex.Message}");
+        }
+    }
+
+    private void OnContentChanged(ChangeEventArgs e)
+    {
+        PostContent = e.Value?.ToString() ?? "";
+        StateHasChanged();
+    }
+
+    private void SelectColor(string color)
+    {
+        SelectedColor = color;
+        StateHasChanged();
+    }
+
+    private bool IsSelectedColor(string color)
+    {
+        return SelectedColor.Equals(color, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task CreatePost()
+    {
+        if (!CanPost || IsLoading)
+            return;
+
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var post = new BasePost
+            {
+                Content = PostContent.Trim(),
+                Name = Profile.Name,
+                UserName = Profile.UserName,
+                Type = PostType.Text,
+                PostColor = SelectedColor,
+            };
+
+            // Handle echo/reply functionality
+            if (IsEcho && EchoPost != null)
+            {
+                post.ReplyType = EchoReply;
+                post.ReplyRefId = EchoPost.Id;
+            }
+
+            // Submit the post
+            if (EchoReply == ReplyType.Note)
+            {
+                await ApiService.NotesService.RespondToNote(post);
+            }
+            else
+            {
+                await ApiService.PostService.Publish(post);
+            }
+
+            // Navigate back
+            await GoBack();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating post: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Failed to create post. Please try again.");
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+}
+
+<style>
+.create-post-container {
+    background-color: var(--off-black);
+    color: var(--white);
+    min-height: 100vh;
+    padding: var(--safe-area-inset-top) var(--safe-area-inset-right) var(--safe-area-inset-bottom) var(--safe-area-inset-left);
+}
+
+.create-post-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid var(--transparent-white);
+    position: sticky;
+    top: 0;
+    background-color: var(--off-black);
+    z-index: 10;
+}
+
+.back-button {
+    background: none;
+    border: none;
+    color: var(--white);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.back-button:hover {
+    background-color: var(--hover-overlay);
+}
+
+.page-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--white);
+}
+
+.header-spacer {
+    width: 3rem;
+}
+
+.create-post-content {
+    padding: 1rem;
+    position: relative;
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--transparent-white);
+    border-top: 2px solid var(--white);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.loading-text {
+    margin-top: 1rem;
+    color: var(--white);
+    font-size: 1rem;
+}
+
+.user-profile-section {
+    margin-bottom: 1rem;
+}
+
+.user-info {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 1rem;
+}
+
+.user-name {
+    color: var(--white);
+    font-weight: 500;
+}
+
+.user-username {
+    color: var(--gray-300);
+    opacity: 0.6;
+}
+
+.post-editor-container {
+    border: 2px solid var(--profile-color-default);
+    border-radius: 0.5rem;
+    background: transparent;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s;
+}
+
+.post-editor-wrapper {
+    position: relative;
+}
+
+.post-editor {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--white);
+    font-family: 'Roboto-Light', var(--font-family);
+    font-size: 17px;
+    padding: 1rem;
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+}
+
+.post-editor::placeholder {
+    color: var(--gray-200);
+}
+
+.character-count {
+    position: absolute;
+    bottom: 0.5rem;
+    right: 1rem;
+    font-size: 0.75rem;
+    color: var(--gray-300);
+}
+
+.text-warning {
+    color: var(--warning-color) !important;
+}
+
+.echo-section {
+    margin: 1rem 0;
+}
+
+.color-picker-section {
+    margin: 1.5rem 0;
+}
+
+.color-picker-title {
+    color: var(--white);
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+.color-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 0.75rem;
+    max-width: 400px;
+}
+
+.color-option {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.color-option:hover {
+    transform: scale(1.1);
+}
+
+.color-option.selected {
+    border-color: var(--white);
+    transform: scale(1.1);
+}
+
+.color-option.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--white);
+    font-weight: bold;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--transparent-white);
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 1rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background-color: var(--white);
+    color: var(--off-black);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background-color: var(--gray-100);
+}
+
+.btn-secondary {
+    background-color: var(--transparent-white);
+    color: var(--white);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: var(--transparent-black-dark);
+}
+
+.btn-spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Mobile responsive */
+@@media (max-width: 768px) {
+    .create-post-content {
+        padding: 0.5rem;
+    }
+    
+    .color-picker-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>

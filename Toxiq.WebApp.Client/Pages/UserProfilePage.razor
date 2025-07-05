@@ -15,7 +15,7 @@
 
 <PageTitle>@GetPageTitle()</PageTitle>
 
-<div class="profile-container">
+<div class="profile-container centered-container">
     @if (IsLoading)
     {
         <div class="loading-container">
@@ -842,7 +842,7 @@
 
     private void NavigateToSettings()
     {
-        Navigation.NavigateTo("/settings");
+        Navigation.NavigateTo("/edit-profile");
     }
 
     private void ViewMyPosts()
