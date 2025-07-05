@@ -1,0 +1,123 @@
+﻿/* Toxiq.WebApp.Client/wwwroot/css/toxiq-variables.css */
+/* Mobile App Color Scheme - Direct port from Toxiq.Mobile/Resources/Styles/Colors.xaml */
+
+:root {
+    /* Primary Colors - Mobile App */
+    --primary: #FFFFFF;
+    --primary-dark: #FFFFFF;
+    --primary-dark-text: #242424;
+    --secondary: #DFD8F7;
+    --secondary-dark-text: #FFFFFF;
+    --tertiary: #FFFFFF;
+    /* Base Colors */
+    --white: #FFFFFF;
+    --black: #000000;
+    --magenta: #D600AA;
+    --midnight-blue: #190649;
+    --off-black: #0e0e0e;
+    --off-white: #fefefe;
+    /* Transparent Colors */
+    --transparent-black: rgba(29, 29, 51, 0.18);
+    --transparent-black-dark: rgba(29, 29, 51, 0.38);
+    --transparent-white: rgba(182, 182, 182, 0.20);
+    /* Gray Scale */
+    --gray-100: #E1E1E1;
+    --gray-200: #C8C8C8;
+    --gray-300: #ACACAC;
+    --gray-400: #919191;
+    --gray-500: #6E6E6E;
+    --gray-600: #404040;
+    --gray-900: #212121;
+    --gray-950: #141414;
+    /* Application Specific Colors */
+    --background-color: var(--off-black);
+    --text-color: var(--white);
+    --text-secondary: var(--gray-300);
+    --border-color: var(--transparent-white);
+    --accent-color: var(--magenta);
+    /* Profile Colors - Default mobile app profile colors */
+    --profile-color-default: #5a189a;
+    --profile-color-purple: #5a189a;
+    --profile-color-blue: #1e40af;
+    --profile-color-green: #059669;
+    --profile-color-orange: #ea580c;
+    --profile-color-red: #dc2626;
+    --profile-color-pink: #db2777;
+    --profile-color-teal: #0891b2;
+    /* Component Colors */
+    --card-background: rgba(255, 255, 255, 0.05);
+    --card-border: var(--transparent-white);
+    --button-primary-bg: var(--white);
+    --button-primary-text: var(--off-black);
+    --button-secondary-bg: var(--transparent-white);
+    --button-secondary-text: var(--white);
+    /* Modal Colors */
+    --modal-overlay: rgba(0, 0, 0, 0.8);
+    --modal-background: var(--gray-950);
+    /* Status Colors */
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --info-color: #3b82f6;
+    /* Interactive States */
+    --hover-overlay: rgba(255, 255, 255, 0.1);
+    --active-overlay: rgba(255, 255, 255, 0.2);
+    --disabled-opacity: 0.5;
+    /* Typography */
+    --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-size-xs: 12px;
+    --font-size-sm: 14px;
+    --font-size-base: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 20px;
+    --font-size-2xl: 24px;
+    --font-size-3xl: 28px;
+    /* Spacing - Mobile App Padding/Margin */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-base: 12px;
+    --spacing-lg: 16px;
+    --spacing-xl: 20px;
+    --spacing-2xl: 24px;
+    --spacing-3xl: 32px;
+    /* Border Radius - Mobile App Rounded Corners */
+    --radius-sm: 8px;
+    --radius-base: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-2xl: 24px;
+    --radius-full: 50%;
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    /* Z-index layers */
+    --z-dropdown: 1000;
+    --z-sticky: 1020;
+    --z-fixed: 1030;
+    --z-modal-backdrop: 1040;
+    --z-modal: 1050;
+    --z-popover: 1060;
+    --z-tooltip: 1070;
+}
+
+/* Dark theme specific overrides (mobile app uses dark theme) */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background-color: var(--off-black);
+        --text-color: var(--white);
+        --text-secondary: var(--gray-300);
+    }
+}
+
+/* Light theme fallback (though mobile app is dark-only) */
+@media (prefers-color-scheme: light) {
+    :root {
+        --background-color: var(--white);
+        --text-color: var(--black);
+        --text-secondary: var(--gray-600);
+        --card-background: rgba(0, 0, 0, 0.05);
+        --hover-overlay: rgba(0, 0, 0, 0.1);
+        --active-overlay: rgba(0, 0, 0, 0.2);
+    }
+}

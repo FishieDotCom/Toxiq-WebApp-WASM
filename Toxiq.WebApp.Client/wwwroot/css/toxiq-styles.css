@@ -277,7 +277,7 @@ body {
 
 /* Content Areas */
 .feed-main {
-    padding: 20px;
+    padding: 0px;
     max-width: 800px;
     margin: 0 auto;
 }
@@ -416,9 +416,7 @@ body {
         font-size: 20px;
     }
 
-    .feed-main {
-        padding: 16px;
-    }
+ 
 
     .header-actions {
         gap: 8px;

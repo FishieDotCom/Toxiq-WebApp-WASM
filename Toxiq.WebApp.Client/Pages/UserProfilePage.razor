@@ -1,0 +1,886 @@
+﻿@page "/profile"
+@page "/profile/{Username}"
+@using Microsoft.AspNetCore.Components
+@using System.Text.RegularExpressions
+@using Toxiq.Mobile.Dto
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+@using Toxiq.WebApp.Client.Services.Authentication
+@using Toxiq.WebApp.Client.Services.Api
+@using Toxiq.WebApp.Client.Components
+@using Microsoft.FluentUI.AspNetCore.Components
+@inject IApiService ApiService
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@GetPageTitle()</PageTitle>
+
+<div class="profile-container">
+    @if (IsLoading)
+    {
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+        </div>
+    }
+    else if (Profile != null)
+    {
+            <!-- Top Navigation Bar -->
+            <div class="top-bar">
+                @if (!IsMe)
+                {
+                    <button class="back-button" @onclick="NavigateBack">
+                        <FluentIcon Value="@(new Icons.Regular.Size24.ArrowLeft().WithColor("#ffffff"))" />
+                    </button>
+                }
+                <span class="profile-title">@(Profile.Name ?? "Profile")</span>
+                @if (IsMe)
+                {
+                    <button class="settings-button" @onclick="NavigateToSettings">
+                        <FluentIcon Value="@(new Icons.Regular.Size24.Settings().WithColor("#ffffff"))" />
+                    </button>
+                }
+                else
+                {
+                    <div></div> <!-- Spacer -->
+                }
+            </div>
+
+            <!-- Main Profile Content -->
+            <div class="profile-content">
+
+                <!-- Profile Header Card -->
+                <div class="profile-header" style="background-color: @(Profile.ProfileColor ?? "#5a189a")">
+                    <div class="profile-info">
+                        <h2 class="username">@@@(Profile.UserName ?? "username")</h2>
+
+                        @if (!string.IsNullOrWhiteSpace(Profile.Bio))
+                        {
+                            <p class="bio">@Profile.Bio</p>
+                        }
+
+                        <!-- Stats Row -->
+                        <div class="stats-row">
+                            <div class="stat-item">
+                                <span class="stat-number">@Profile.Followers</span>
+                                <span class="stat-label">Followers</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">@Profile.Following</span>
+                                <span class="stat-label">Following</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">@Profile.Aura</span>
+                                <span class="stat-label">Aura</span>
+                            </div>
+                        </div>
+
+                        <!-- Age and Gender -->
+                        @if (Profile.Age.HasValue || Profile.Gender.HasValue)
+                        {
+                            <div class="profile-details">
+                                @if (Profile.Age.HasValue)
+                                {
+                                    <span class="detail-item">@Profile.Age years old</span>
+                                }
+                                @if (Profile.Gender.HasValue)
+                                {
+                                    <span class="detail-item">@GetGenderEmoji(Profile.Gender.Value)</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    @if (IsMe)
+                    {
+                    <button class="action-button secondary" @onclick="ViewMyNotes">
+                        <span>Notes</span>
+                    </button>
+                        <button class="action-button primary" @onclick="ViewMyPosts">
+                            <span>View Posts</span>
+                        </button>
+                       
+                    }
+                    else
+                    {
+                        <button class="action-button primary" @onclick="SendNote">
+                            <span>Send Note</span>
+                        </button>
+                        <button class="action-button secondary" @onclick="ViewUserPosts">
+                            <span>View Posts</span>
+                        </button>
+                    }
+                </div>
+
+                <!-- Achievements Section -->
+                @if (Profile.Achievements?.Any() == true)
+                {
+                    <div class="achievements-section">
+                        <h3 class="section-title">Achievements</h3>
+                        <div class="achievements-grid">
+                            @foreach (var achievement in Profile.Achievements)
+                            {
+                                <div class="achievement-item"
+                                     style="background-color: @Profile.ProfileColor"
+                                     @onclick="() => ShowAchievementDetail(achievement)">
+                                    <span class="achievement-icon">@achievement.Icon</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+    }
+    else if (!IsLoading)
+    {
+        <div class="error-container">
+            <h3>Profile not found</h3>
+            <p>The user you're looking for doesn't exist or has been removed.</p>
+            <button class="action-button primary" @onclick="NavigateToHome">Go Home</button>
+        </div>
+    }
+</div>
+
+<!-- Achievement Detail Modal -->
+@if (SelectedAchievement != null)
+{
+    <div class="modal-overlay" @onclick="CloseAchievementDetail">
+        <div class="achievement-modal" style="background-color: @Profile.ProfileColor" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <span class="achievement-icon-large">@SelectedAchievement.Icon</span>
+                <h3 class="achievement-name">@SelectedAchievement.Name</h3>
+                <p class="achievement-description">@SelectedAchievement.Description</p>
+                <p class="achievement-date">@SelectedAchievement.DateUnlocked.ToString("dd MMMM yyyy")</p>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Note Input Modal -->
+@if (ShowNoteInput && !IsMe)
+{
+    <div class="modal-overlay" @onclick="CloseNoteInput">
+        <div class="note-modal" @onclick:stopPropagation="true">
+            <div class="note-header">
+                <h3>Send Note to @@@Profile.UserName</h3>
+                <button class="close-button" @onclick="CloseNoteInput">×</button>
+            </div>
+            <div class="note-content">
+                <p class="note-info">You can't send a new note until this user responds to your first note.</p>
+                <textarea @bind="NoteContent"
+                          placeholder="Enter your note..."
+                          maxlength="70"
+                          class="note-textarea"></textarea>
+                <div class="note-actions">
+                    <button class="action-button secondary" @onclick="CloseNoteInput">Cancel</button>
+                    <button class="action-button primary"
+                            @onclick="SendNoteAsync"
+                            disabled="@(string.IsNullOrWhiteSpace(NoteContent) || IsSendingNote)">
+                        @if (IsSendingNote)
+                        {
+                            <span class="loading-spinner-small"></span>
+                            <span>Sending...</span>
+                        }
+                        else
+                        {
+                            <span>Send</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* Base Profile Container - Matching Mobile App OffBlack */
+    .profile-container {
+        background-color: var(--off-black);
+        min-height: 100vh;
+        color: white;
+        font-family: 'Roboto', sans-serif;
+        position: relative;
+        overflow-x: hidden;
+    }
+
+    /* Loading States */
+    .loading-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 50vh;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        border-left: 4px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    .loading-spinner-small {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-left: 2px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 8px;
+    }
+
+    @@keyframes spin {
+        0%
+
+    {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    /* Top Navigation Bar - Matching Mobile App */
+    .top-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background-color: var(--off-black);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .back-button, .settings-button {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: background-color 0.2s ease;
+    }
+
+        .back-button:hover, .settings-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .profile-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: white;
+    }
+
+    /* Main Profile Content */
+    .profile-content {
+        padding: 10px;
+    }
+
+    /* Profile Header Card - Matching Mobile App Layout */
+    .profile-header {
+        border-radius: 20px;
+        padding: 20px;
+        margin-bottom: 20px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .profile-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .username {
+        font-size: 20px;
+        font-weight: bold;
+        margin: 0;
+        color: white;
+    }
+
+    .bio {
+        font-size: 14px;
+        line-height: 1.5;
+        margin: 0;
+        opacity: 0.9;
+        color: white;
+    }
+
+    /* Stats Row - Matching Mobile App */
+    .stats-row {
+        display: flex;
+        gap: 24px;
+        margin: 16px 0;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .stat-number {
+        font-size: 18px;
+        font-weight: bold;
+        color: white;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        opacity: 0.8;
+        color: white;
+    }
+
+    /* Profile Details */
+    .profile-details {
+        display: flex;
+        gap: 16px;
+        margin-top: 8px;
+    }
+
+    .detail-item {
+        font-size: 14px;
+        opacity: 0.8;
+        color: white;
+    }
+
+    /* Action Buttons - Matching Mobile App Style */
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .action-button {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 16px;
+        border: none;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-family: 'Roboto', sans-serif;
+    }
+
+        .action-button.primary {
+            background-color: white;
+            color: var(--off-black);
+        }
+
+            .action-button.primary:hover {
+                background-color: rgba(255, 255, 255, 0.9);
+                transform: translateY(-1px);
+            }
+
+        .action-button.secondary {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+            .action-button.secondary:hover {
+                background-color: rgba(255, 255, 255, 0.2);
+                transform: translateY(-1px);
+            }
+
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .action-button .material-icons {
+            font-size: 18px;
+        }
+
+    /* Achievements Section - Matching Mobile App */
+    .achievements-section {
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 16px 0;
+        color: white;
+    }
+
+    .achievements-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+        gap: 12px;
+    }
+
+    .achievement-item {
+        width: 70px;
+        height: 70px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+        .achievement-item:hover {
+            transform: scale(1.05);
+        }
+
+    .achievement-icon {
+        font-size: 24px;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+
+    /* Achievement Modal - Matching Mobile App BottomSheet */
+    .achievement-modal {
+        border-radius: 20px 20px 0 0;
+        color: white;
+        width: 100%;
+        max-width: 400px;
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        animation: slideUp 0.3s ease-out;
+    }
+
+    .modal-content {
+        padding: 32px 24px;
+        text-align: center;
+    }
+
+    .achievement-icon-large {
+        font-size: 72px;
+        display: block;
+        margin-bottom: 16px;
+    }
+
+    .achievement-name {
+        font-size: 20px;
+        font-weight: bold;
+        margin: 0 0 12px 0;
+        color: white;
+    }
+
+    .achievement-description {
+        font-size: 14px;
+        line-height: 1.5;
+        margin: 0 0 12px 0;
+        opacity: 0.9;
+        color: white;
+    }
+
+    .achievement-date {
+        font-size: 12px;
+        opacity: 0.7;
+        margin: 0;
+        color: white;
+    }
+
+    @@keyframes slideUp {
+        from
+
+    {
+        transform: translateX(-50%) translateY(100%);
+    }
+
+    to {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    }
+
+    /* Note Modal */
+    .note-modal {
+        background-color: var(--gray-950);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 400px;
+        color: white;
+    }
+
+    .note-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 20px 0 20px;
+    }
+
+        .note-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+    .close-button {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 50%;
+        transition: background-color 0.2s ease;
+    }
+
+        .close-button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+    .note-content {
+        padding: 20px;
+    }
+
+    .note-info {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.7);
+        margin: 0 0 16px 0;
+        line-height: 1.4;
+    }
+
+    .note-textarea {
+        width: 100%;
+        min-height: 80px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        padding: 12px;
+        color: white;
+        font-size: 14px;
+        font-family: 'Roboto', sans-serif;
+        resize: vertical;
+        margin-bottom: 16px;
+    }
+
+        .note-textarea::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .note-textarea:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+    .note-actions {
+        display: flex;
+        gap: 12px;
+    }
+
+    /* Error Container */
+    .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 50vh;
+        text-align: center;
+        padding: 20px;
+    }
+
+        .error-container h3 {
+            color: white;
+            margin: 0 0 12px 0;
+            font-size: 20px;
+        }
+
+        .error-container p {
+            color: rgba(255, 255, 255, 0.7);
+            margin: 0 0 24px 0;
+            font-size: 14px;
+        }
+
+    /* Responsive Design */
+    @@media (max-width: 480px) {
+        .profile-content
+
+    {
+        padding: 10px 16px;
+    }
+
+    .stats-row {
+        gap: 16px;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .achievements-grid {
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 10px;
+    }
+
+    .achievement-item {
+        width: 60px;
+        height: 60px;
+    }
+
+    .achievement-icon {
+        font-size: 20px;
+    }
+
+    }
+
+    /* Material Icons Support */
+    .material-icons {
+        font-family: 'Material Icons';
+        font-weight: normal;
+        font-style: normal;
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-feature-settings: 'liga';
+        -webkit-font-smoothing: antialiased;
+    }
+
+    /* Pull to Refresh Styles */
+    .refresh-container {
+        position: relative;
+        overflow-y: auto;
+        height: 100vh;
+    }
+
+    .refresh-indicator {
+        position: absolute;
+        top: -50px;
+        left: 50%;
+        transform: translateX(-50%);
+        transition: top 0.3s ease;
+        opacity: 0;
+    }
+
+        .refresh-indicator.visible {
+            top: 20px;
+            opacity: 1;
+        }
+</style>
+
+@code {
+    [Parameter] public string? Username { get; set; }
+
+    private UserProfile Profile { get; set; }
+    private UserProfile MyProfile { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private bool IsMe => Profile != null && MyProfile != null && Profile.UserName == MyProfile.UserName;
+    private Achievement? SelectedAchievement { get; set; }
+    private bool ShowNoteInput { get; set; }
+    private string NoteContent { get; set; } = "";
+    private bool IsSendingNote { get; set; }
+
+    // Pull to refresh variables
+    private bool _isRefreshing = false;
+    private double _startY = 0;
+    private double _currentY = 0;
+    private bool _isPulling = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProfileData();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadProfileData();
+    }
+
+    private async Task LoadProfileData()
+    {
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Always load current user profile
+            MyProfile = await ApiService.UserService.GetMe(force: true);
+
+            if (string.IsNullOrEmpty(Username))
+            {
+                // No username provided - show current user's profile
+                Profile = MyProfile;
+            }
+            else
+            {
+                // Load specific user's profile
+                Profile = await ApiService.UserService.GetUser(Username);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading profile: {ex.Message}");
+            Profile = null;
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetPageTitle()
+    {
+        if (Profile == null) return "Profile - Toxiq";
+        return IsMe ? "My Profile - Toxiq" : $"{Profile.Name} (@{Profile.UserName}) - Toxiq";
+    }
+
+    private string GetGenderEmoji(Gender gender)
+    {
+        return gender switch
+        {
+            Gender.Male => "♂️",
+            Gender.Female => "♀️",
+            _ => ""
+        };
+    }
+
+    private void ShowAchievementDetail(Achievement achievement)
+    {
+        SelectedAchievement = achievement;
+        StateHasChanged();
+    }
+
+    private void CloseAchievementDetail()
+    {
+        SelectedAchievement = null;
+        StateHasChanged();
+    }
+
+    private void SendNote()
+    {
+        if (IsMe) return;
+        ShowNoteInput = true;
+        StateHasChanged();
+    }
+
+    private void CloseNoteInput()
+    {
+        ShowNoteInput = false;
+        NoteContent = "";
+        StateHasChanged();
+    }
+
+    private async Task SendNoteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(NoteContent) || Profile == null) return;
+
+        IsSendingNote = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await ApiService.NotesService.SendNote(new NoteDto
+                {
+                    Recipient = Profile.Id,
+                    Content = NoteContent.Trim()
+                });
+
+            if (result.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Note sent successfully!");
+                CloseNoteInput();
+            }
+            else
+            {
+                var errorContent = await result.Content.ReadAsStringAsync();
+                await JSRuntime.InvokeVoidAsync("alert", "Failed to send note. Please try again.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending note: {ex.Message}");
+            await JSRuntime.InvokeVoidAsync("alert", "Failed to send note. Please try again.");
+        }
+        finally
+        {
+            IsSendingNote = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void NavigateToHome()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void NavigateToSettings()
+    {
+        Navigation.NavigateTo("/settings");
+    }
+
+    private void ViewMyPosts()
+    {
+        if (Profile != null)
+        {
+            Navigation.NavigateTo($"/posts/user/{Profile.UserName}");
+        }
+    }
+
+    private void ViewUserPosts()
+    {
+        if (Profile != null)
+        {
+            Navigation.NavigateTo($"/posts/user/{Profile.UserName}");
+        }
+    }
+
+    private void ViewMyNotes()
+    {
+        Navigation.NavigateTo("/notes");
+    }
+
+    private async Task RefreshProfile()
+    {
+        if (_isRefreshing) return;
+
+        _isRefreshing = true;
+        StateHasChanged();
+
+        try
+        {
+            await LoadProfileData();
+        }
+        finally
+        {
+            _isRefreshing = false;
+            StateHasChanged();
+        }
+    }
+}
