@@ -227,24 +227,6 @@ namespace Toxiq.WebApp.Client.Services.Api
            await _api.GetRawAsync($"Post/Downvote/{id}");
     }
 
-    internal class NotesServiceImpl : INotesService
-    {
-        private readonly OptimizedApiService _api;
-
-        public NotesServiceImpl(OptimizedApiService api) => _api = api;
-
-        public ValueTask<List<NoteDto>> GetMyNotes() =>
-            _api.GetAsync<List<NoteDto>>("Notes/GetMyNotes");
-
-        public ValueTask<NoteDto> GetNote(Guid id) =>
-            _api.GetAsync<NoteDto>($"Notes/GetNote/{id}");
-
-        public ValueTask<HttpResponseMessage> SendNote(NoteDto input) =>
-            _api.PostRawAsync("Notes/SendNote", input);
-
-        public async ValueTask RespondToNote(BasePost input) =>
-          await _api.PostAsync<object>("Notes/RespondToNote", input);
-    }
 
     internal class ColorServiceImpl : IColorService
     {
