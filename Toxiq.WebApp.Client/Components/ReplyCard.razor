@@ -1,0 +1,227 @@
+﻿@* Toxiq.WebApp.Client/Components/ReplyCard.razor *@
+@* ReplyCard Component - Matches Mobile App ReplyCardControl functionality *@
+@using Microsoft.FluentUI.AspNetCore.Components
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Services.Feed
+@inject IFeedService FeedService
+
+<div class="reply-card @GetReplyTypeClass()">
+    <div class="reply-content">
+        <!-- Reply Header -->
+        <div class="reply-header">
+            <div class="reply-author" @onclick="HandleProfileClick" @onclick:stopPropagation="true">
+                <span class="reply-author-name">@Post.Name</span>
+                <span class="reply-author-username">@@@Post.UserName</span>
+            </div>
+            @if (Post.Type == PostType.Burn)
+            {
+                <div class="reply-burn-indicator">🔥</div>
+            }
+        </div>
+
+        <!-- Reply Text Content -->
+        @if (!string.IsNullOrEmpty(Post.Content))
+        {
+            <div class="reply-text" style="@GetReplyContentStyle()">
+                <FormattedText Text="@Post.Content" />
+            </div>
+        }
+
+        <!-- Reply Media (Images/Video) -->
+        @if (Post.PostMedia?.Count > 0)
+        {
+            <div class="reply-media">
+                @foreach (var media in Post.PostMedia.Take(1)) // Only show first media item in reply
+                {
+                    @if (IsImageMedia(media))
+                    {
+                        <img src="@media.MediaPath"
+                             alt="Reply attachment"
+                             class="reply-image"
+                             @onclick="HandleMediaClick"
+                             @onclick:stopPropagation="true" />
+                    }
+                    else if (IsVideoMedia(media))
+                    {
+                        <video class="reply-video" controls>
+                            <source src="@media.MediaPath" type="video/mp4">
+                            Your browser does not support video playback.
+                        </video>
+                    }
+                }
+            </div>
+        }
+
+        <!-- Reply Link/URL Preview (if applicable) -->
+        @if (HasLinkPreview())
+        {
+            <div class="reply-link-preview">
+                <div class="link-preview-content">
+                    <div class="link-preview-title">@GetLinkTitle()</div>
+                    <div class="link-preview-description">@GetLinkDescription()</div>
+                    <div class="link-preview-url">@GetLinkUrl()</div>
+                </div>
+            </div>
+        }
+
+        <!-- Reply Stats (if IsFullPost) -->
+        @if (IsFullPost)
+        {
+            <div class="reply-stats">
+                <span class="reply-stat-item">@GetSupportCountDisplay() Likes</span>
+                <span class="reply-stat-item">@(Post.CommentCount ?? 0) Comments</span>
+                @if (Post.ShareCount.HasValue && Post.ShareCount > 0)
+                {
+                    <span class="reply-stat-item">@Post.ShareCount Shares</span>
+                }
+            </div>
+        }
+
+        <!-- Reply Actions (if IsFullPost and ShowActions) -->
+        @if (IsFullPost && ShowActions)
+        {
+            <div class="reply-actions">
+                <!-- Vote Buttons -->
+                <VoteButtons ContentId="@Post.Id"
+                             ContentType="reply"
+                             InitialSupportStatus="@Post.SupportStatus"
+                             InitialSupportCount="@Post.SupportCount"
+                             ShowCount="false"
+                             Variant="compact"
+                             OnVoteChanged="@HandleReplyVoteChanged" />
+
+                <!-- Comment Button -->
+                <button class="reply-action-btn"
+                        @onclick="HandleCommentClick"
+                        @onclick:stopPropagation="true">
+                    <div class="btn-icon">
+                        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size16.Comment().WithColor("#ffffff"))" />
+                    </div>
+                    <span class="btn-text">Reply</span>
+                </button>
+
+                <!-- Share Button -->
+                <button class="reply-action-btn"
+                        @onclick:stopPropagation="true">
+                    <div class="btn-icon">
+                        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size16.Share().WithColor("#ffffff"))" />
+                    </div>
+                    <span class="btn-text">Share</span>
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public BasePost Post { get; set; } = default!;
+    [Parameter] public bool IsFullPost { get; set; } = false;
+    [Parameter] public bool ShowActions { get; set; } = false;
+    [Parameter] public EventCallback<BasePost> OnReplyClick { get; set; }
+    [Parameter] public EventCallback<BasePost> OnProfileClick { get; set; }
+
+    protected override void OnInitialized()
+    {
+        // Subscribe to feed service events for real-time updates
+        FeedService.PostInteractionChanged += OnPostInteractionChanged;
+    }
+
+    public void Dispose()
+    {
+        FeedService.PostInteractionChanged -= OnPostInteractionChanged;
+    }
+
+    private void OnPostInteractionChanged(object? sender, PostInteractionEventArgs e)
+    {
+        if (e.PostId == Post.Id)
+        {
+            StateHasChanged();
+        }
+    }
+
+    private string GetReplyTypeClass()
+    {
+        var baseClass = "reply-card";
+
+        // Add specific classes based on reply type and content
+        if (Post.ReplyType == ReplyType.Text)
+            baseClass += " reply-echo";
+        else if (Post.ReplyType == ReplyType.Comment)
+            baseClass += " reply-comment";
+        else if (Post.ReplyType == ReplyType.Note)
+            baseClass += " reply-note";
+
+        if (Post.Type == PostType.Burn)
+            baseClass += " reply-burn";
+
+        return baseClass;
+    }
+
+    private string GetReplyContentStyle()
+    {
+        var maxHeight = IsFullPost ? "none" : "80px";
+        var overflow = IsFullPost ? "visible" : "hidden";
+        return $"max-height: {maxHeight}; overflow: {overflow};";
+    }
+
+    private bool IsImageMedia(MediaDto media)
+    {
+        if (string.IsNullOrEmpty(media.MediaPath)) return false;
+
+        var extension = Path.GetExtension(media.MediaPath).ToLowerInvariant();
+        return extension is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp";
+    }
+
+    private bool IsVideoMedia(MediaDto media)
+    {
+        if (string.IsNullOrEmpty(media.MediaPath)) return false;
+
+        var extension = Path.GetExtension(media.MediaPath).ToLowerInvariant();
+        return extension is ".mp4" or ".webm" or ".ogg" or ".avi" or ".mov";
+    }
+
+    private bool HasLinkPreview()
+    {
+        // Check if post content contains URLs and has link preview data
+        // This would typically come from the API
+        return false; // Implement based on your link preview system
+    }
+
+    private string GetLinkTitle() => ""; // Implement based on your link preview data
+    private string GetLinkDescription() => ""; // Implement based on your link preview data
+    private string GetLinkUrl() => ""; // Implement based on your link preview data
+
+    private int GetSupportCountDisplay()
+    {
+        return Math.Max(0, Post.SupportCount ?? 0);
+    }
+
+    private async Task HandleReplyVoteChanged(VoteButtons.VoteChangedEventArgs args)
+    {
+        // Update local post data if needed
+        if (Post.Id == args.ContentId)
+        {
+            Post.SupportStatus = args.NewSupportStatus;
+            Post.SupportCount = args.NewSupportCount;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleCommentClick()
+    {
+        await OnReplyClick.InvokeAsync(Post);
+    }
+
+    private async Task HandleProfileClick()
+    {
+        await OnProfileClick.InvokeAsync(Post);
+    }
+
+       
+           
+    private async Task HandleMediaClick()
+    {
+        // Handle media click (open fullscreen, etc.)
+        // Implement based on your media viewer requirements
+    }
+}

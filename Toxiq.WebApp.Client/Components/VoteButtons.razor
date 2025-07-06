@@ -263,18 +263,33 @@
 
     private string GetContainerStyle()
     {
-        var baseStyle = "display: flex; align-items: center; gap: 0;";
-
-        if (Variant == "compact")
+        return Variant switch
         {
-            baseStyle += " transform: scale(0.8);";
-        }
-
-        return baseStyle;
+            "compact" => "display: flex; align-items: center; gap: 4px;",
+            "twitter-style" => "display: flex; align-items: center; gap: 0;",
+            _ => "display: flex; align-items: center; gap: 0;"
+        };
     }
 
     private string GetUpvoteButtonStyle()
     {
+        if (Variant == "twitter-style")
+        {
+            return @"background: none;
+                    border: none;
+                    color: var(--gray-500);
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 8px;
+                    border-radius: 20px;
+                    transition: all 0.2s ease;
+                    font-size: 13px;
+                    font-weight: 400;
+                    min-width: 0;";
+        }
+
         return @"display: flex;
                 align-items: center;
                 justify-content: center;
@@ -293,6 +308,23 @@
 
     private string GetDownvoteButtonStyle()
     {
+        if (Variant == "twitter-style")
+        {
+            return @"background: none;
+                    border: none;
+                    color: var(--gray-500);
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 8px;
+                    border-radius: 20px;
+                    transition: all 0.2s ease;
+                    font-size: 13px;
+                    font-weight: 400;
+                    min-width: 0;";
+        }
+
         return @"display: flex;
                 align-items: center;
                 justify-content: center;
@@ -308,7 +340,6 @@
                 border-bottom-left-radius: 0;
                 gap: 6px;";
     }
-
     private string GetUpvoteButtonClass()
     {
         var baseClass = "upvote-btn";

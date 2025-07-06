@@ -1,23 +1,33 @@
 ﻿@* Toxiq.WebApp.Client/Components/PostCard.razor *@
+@* Updated PostCard Component - Twitter-like design while preserving all mobile app features *@
 @using Microsoft.FluentUI.AspNetCore.Components
 @using Toxiq.Mobile.Dto
 @using Toxiq.WebApp.Client.Services.Feed
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject IFeedService FeedService
+@implements IDisposable
 
 <div class="post-card @GetPostTypeClass()" @onclick="HandlePostClick">
     <div class="post-content">
-        <!-- Header -->
+        <!-- Header - Twitter-like with author info and timestamp -->
         <div class="post-header">
             <div class="post-author" @onclick="HandleProfileClick" @onclick:stopPropagation="true">
                 <span class="author-name">@Post.Name</span>
                 <span class="author-username">@@@Post.UserName</span>
+               @*  <span class="post-timestamp">·</span>
+                <span class="post-timestamp">@GetTimeAgo()</span> *@
             </div>
-            @if (Post.Type == PostType.Burn)
-            {
-                <div class="burn-indicator">🔥🔥</div>
-            }
+            <div class="post-header-actions">
+                @if (Post.Type == PostType.Burn)
+                {
+                    <div class="burn-indicator" title="Burn Post">🔥</div>
+                }
+                <!-- Post Options Menu Button -->
+               @*  <button class="post-options-btn" @onclick="HandleOptionsClick" @onclick:stopPropagation="true">
+                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size16.MoreHorizontal().WithColor("#6E6E6E"))" />
+                </button> *@
+            </div>
         </div>
 
         <!-- Main Content -->
@@ -25,71 +35,128 @@
             <FormattedText Text="@Post.Content" />
         </div>
 
-        <!-- Media (Images) -->
+        <!-- Media (Images/Video) - Twitter-like media display -->
         @if (Post.PostMedia?.Count > 0)
         {
             <div class="post-media">
-                <img src="@Post.PostMedia[0].MediaPath"
-                     alt="Post attachment"
-                     class="post-image" />
-            </div>
-        }
-
-        <!-- Reply Content (if this is a reply) -->
-        @if (Post.ReplyType != ReplyType.Non && ReplyPost != null)
-        {
-            <div class="reply-content">
-                <div class="reply-header">
-                    <span class="reply-author-name">@ReplyPost.Name</span>
-                    <span class="reply-author-username">@@@ReplyPost.UserName</span>
-                </div>
-                <p class="reply-text">@ReplyPost.Content</p>
-                @if (ReplyPost.PostMedia?.Count > 0)
+                @if (Post.PostMedia.Count == 1)
                 {
-                    <img src="@ReplyPost.PostMedia[0].MediaPath"
-                         alt="Reply attachment"
-                         class="reply-image" />
+                    <!-- Single media item -->
+                    var media = Post.PostMedia[0];
+                    @if (IsImageMedia(media))
+                    {
+                        <img src="@media.MediaPath"
+                             alt="Post attachment"
+                             class="post-image single-image"
+                             @onclick:stopPropagation="true" />
+                    }
+                    else if (IsVideoMedia(media))
+                    {
+                        <video class="post-video" controls>
+                            <source src="@media.MediaPath" type="video/mp4">
+                            Your browser does not support video playback.
+                        </video>
+                    }
+                }
+                else if (Post.PostMedia.Count > 1)
+                {
+                    <!-- Multiple media items - Twitter-like grid -->
+                    <div class="post-media-grid @GetMediaGridClass()">
+                        @foreach (var media in Post.PostMedia.Take(4)) // Max 4 media items like Twitter
+                        {
+                            @if (IsImageMedia(media))
+                            {
+                                <img src="@media.MediaPath"
+                                     alt="Post attachment"
+                                     class="post-image grid-image"
+                                     @onclick:stopPropagation="true" />
+                            }
+                        }
+                        @if (Post.PostMedia.Count > 4)
+                        {
+                            <div class="media-count-overlay" @onclick:stopPropagation="true">
+                                <span>+@(Post.PostMedia.Count - 4)</span>
+                            </div>
+                        }
+                    </div>
                 }
             </div>
         }
 
-        <!-- Stats Row -->
-        <div class="post-stats">
-            <span class="stat-item">@GetSupportCountDisplay() Likes</span>
-            <span class="stat-item">@(Post.CommentCount ?? 0) Comments</span>
-        </div>
+        <!-- Reply/Echo Content (if this is a reply) - Twitter-like quoted tweet style -->
+        @if (Post.ReplyType != ReplyType.Non && ReplyPost != null)
+        {
+            <div class="quoted-post" @onclick="HandleQuotedPostClick" @onclick:stopPropagation="true">
+                <ReplyCard Post="@ReplyPost"
+                           IsFullPost="false"
+                           ShowActions="false"
+                           OnReplyClick="@HandleQuotedPostClick"
+                           OnProfileClick="@HandleQuotedProfileClick" />
+            </div>
+        }
 
-        <!-- Action Buttons -->
+        <!-- Action Buttons Row - Twitter-like layout -->
         <div class="post-actions">
-            <!-- Support Buttons (Upvote/Downvote) -->
+        
+
+            <!-- Support Buttons (Upvote/Downvote) - Preserve existing VoteButtons component -->
             <VoteButtons ContentId="@Post.Id"
                          ContentType="post"
                          InitialSupportStatus="@Post.SupportStatus"
                          InitialSupportCount="@Post.SupportCount"
-                         ShowCount="false"
-                         Variant="default"
+                         ShowCount="true"
+                         Variant="twitter-style"
                          OnVoteChanged="@HandlePostVoteChanged" />
 
-            <!-- Comment Button -->
-            <button class="action-btn comment-btn"
+
+                             <!-- Comment Button -->
+            <button class="action-btn comment-btn transparent"
                     @onclick="HandleCommentClick"
-                    @onclick:stopPropagation="true">
+                    @onclick:stopPropagation="true"
+                    title="Comment">
                 <div class="btn-icon">
-                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Comment().WithColor("#ffffff"))" />
+                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Comment().WithColor("#6E6E6E"))" />
                 </div>
-                <span class="btn-text">Comment</span>
+                <span class="btn-text">@(Post.CommentCount ?? 0)</span>
             </button>
 
-            <!-- Share Button -->
-            <button class="action-btn share-btn"
-                    @onclick="HandleShare"
-                    @onclick:stopPropagation="true">
+            <!-- More Actions Button -->
+            <button class="action-btn more-btn transparent"
+                    @onclick="HandleMoreActions"
+                    @onclick:stopPropagation="true"
+                    title="More actions">
                 <div class="btn-icon">
-                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share().WithColor("#ffffff"))" />
+                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share().WithColor("#6E6E6E"))" />
                 </div>
-                <span class="btn-text">Share</span>
             </button>
         </div>
+
+        <!-- Post Stats (if FullPost) -->
+@*         @if (FullPost)
+        {
+            <div class="post-stats-detailed">
+                <div class="stats-row">
+                    @if (GetSupportCountDisplay() > 0)
+                    {
+                        <span class="stat-item" @onclick="HandleViewLikes" @onclick:stopPropagation="true">
+                            <strong>@GetSupportCountDisplay()</strong> likes
+                        </span>
+                    }
+                    @if ((Post.CommentCount ?? 0) > 0)
+                    {
+                        <span class="stat-item" @onclick="HandleViewComments" @onclick:stopPropagation="true">
+                            <strong>@(Post.CommentCount ?? 0)</strong> comments
+                        </span>
+                    }
+                    @if ((Post.ShareCount ?? 0) > 0)
+                    {
+                        <span class="stat-item" @onclick="HandleViewShares" @onclick:stopPropagation="true">
+                            <strong>@(Post.ShareCount ?? 0)</strong> shares
+                        </span>
+                    }
+                </div>
+            </div>
+        } *@
     </div>
 </div>
 
@@ -127,22 +194,6 @@
         FeedService.PostInteractionChanged += OnPostInteractionChanged;
     }
 
-
-    private async Task HandlePostVoteChanged(VoteButtons.VoteChangedEventArgs args)
-
-    {
-        //Logger.LogDebug("Post vote changed: {PostId}, Status: {Status}, Count: {Count}",args.ContentId, args.NewSupportStatus, args.NewSupportCount);
-
-        // Update local post data if needed
-
-        if(Post.Id == args.ContentId)
-        {
-            Post.SupportStatus = args.NewSupportStatus;
-            Post.SupportCount = args.NewSupportCount;
-            StateHasChanged();
-        }
-    }
-
     public void Dispose()
     {
         FeedService.PostInteractionChanged -= OnPostInteractionChanged;
@@ -163,8 +214,15 @@
 
     private string GetPostTypeClass()
     {
-        //return Post.Type == PostType.Burn ? "post-card burn-post" :
-        return "post-card";
+        var baseClass = "post-card";
+
+        if (Post.Type == PostType.Burn)
+            baseClass += " burn-post";
+
+        if (FullPost)
+            baseClass += " full-post";
+
+        return baseClass;
     }
 
     private string GetContentStyle()
@@ -174,131 +232,61 @@
         return $"max-height: {maxHeight}; overflow: {overflow};";
     }
 
-    private string GetSupportClass(bool isUpvote)
+    private string GetTimeAgo()
     {
-        if (CurrentSupportStatus == isUpvote)
-        {
-            return isUpvote ? "active-up" : "active-down";
-        }
         return "";
+
+        // var timeSpan = DateTime.UtcNow - Post.DateCreated.Value;
+
+        // return timeSpan.TotalMinutes < 1 ? "now" :
+        //        timeSpan.TotalMinutes < 60 ? $"{(int)timeSpan.TotalMinutes}m" :
+        //        timeSpan.TotalHours < 24 ? $"{(int)timeSpan.TotalHours}h" :
+        //        timeSpan.TotalDays < 7 ? $"{(int)timeSpan.TotalDays}d" :
+        //        Post.DateCreated.Value.ToString("MMM d");
+    }
+
+    private string GetDetailedTimestamp()
+    {
+        //if (!Post.date.HasValue) return "";
+        return "";
+    }
+
+    private bool IsImageMedia(MediaDto media)
+    {
+        if (string.IsNullOrEmpty(media.MediaPath)) return false;
+
+        var extension = Path.GetExtension(media.MediaPath).ToLowerInvariant();
+        return extension is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp";
+    }
+
+    private bool IsVideoMedia(MediaDto media)
+    {
+        if (string.IsNullOrEmpty(media.MediaPath)) return false;
+
+        var extension = Path.GetExtension(media.MediaPath).ToLowerInvariant();
+        return extension is ".mp4" or ".webm" or ".ogg" or ".avi" or ".mov";
+    }
+
+    private string GetMediaGridClass()
+    {
+        return Post.PostMedia?.Count switch
+        {
+            2 => "media-grid-2",
+            3 => "media-grid-3",
+            4 or > 4 => "media-grid-4",
+            _ => ""
+        };
     }
 
     private int GetSupportCountDisplay()
     {
-        return CurrentSupportCount ?? Post.SupportCount ?? 0;
+        return Math.Max(0, CurrentSupportCount ?? Post.SupportCount ?? 0);
     }
 
-    private async Task HandleUpvote()
-    {
-        if (IsProcessingVote) return;
-
-        IsProcessingVote = true;
-        try
-        {
-            bool success;
-
-            // Toggle logic matching mobile app behavior
-            if (CurrentSupportStatus == true)
-            {
-                // Remove vote if already upvoted (mobile app uses Deletevote)
-                success = await FeedService.RemoveVoteAsync(Post.Id);
-                if (success)
-                {
-                    CurrentSupportStatus = null;
-                    CurrentSupportCount = Math.Max(0, (CurrentSupportCount ?? 0) - 1);
-                }
-            }
-            else
-            {
-                // Upvote the post
-                success = await FeedService.UpvotePostAsync(Post.Id);
-                if (success)
-                {
-                    // Adjust count based on previous state
-                    var countAdjustment = CurrentSupportStatus == false ? 2 : 1;
-                    CurrentSupportStatus = true;
-                    CurrentSupportCount = (CurrentSupportCount ?? 0) + countAdjustment;
-                }
-            }
-
-            if (success)
-            {
-                StateHasChanged();
-            }
-        }
-        catch (Exception)
-        {
-            // Handle error silently (matching mobile app pattern)
-        }
-        finally
-        {
-            IsProcessingVote = false;
-        }
-    }
-
-    private async Task HandleDownvote()
-    {
-        if (IsProcessingVote) return;
-
-        IsProcessingVote = true;
-        try
-        {
-            bool success;
-
-            // Toggle logic matching mobile app behavior
-            if (CurrentSupportStatus == false)
-            {
-                // Remove vote if already downvoted
-                success = await FeedService.RemoveVoteAsync(Post.Id);
-                if (success)
-                {
-                    CurrentSupportStatus = null;
-                    CurrentSupportCount = (CurrentSupportCount ?? 0) + 1;
-                }
-            }
-            else
-            {
-                // Downvote the post
-                success = await FeedService.DownvotePostAsync(Post.Id);
-                if (success)
-                {
-                    // Adjust count based on previous state
-                    var countAdjustment = CurrentSupportStatus == true ? 2 : 1;
-                    CurrentSupportStatus = false;
-                    CurrentSupportCount = Math.Max(0, (CurrentSupportCount ?? 0) - countAdjustment);
-                }
-            }
-
-            if (success)
-            {
-                StateHasChanged();
-            }
-        }
-        catch (Exception)
-        {
-            // Handle error silently (matching mobile app pattern)
-        }
-        finally
-        {
-            IsProcessingVote = false;
-        }
-    }
-
+    // Event Handlers
     private async Task HandlePostClick()
     {
-        if (OnPostClick.HasDelegate)
-        {
-            await OnPostClick.InvokeAsync(Post);
-        }
-        else
-        {
-            Navigation.NavigateTo($"/posts/{Post.Id}");
-        }
-    }
-
-    private async Task HandleCommentClick()
-    {
-        Navigation.NavigateTo($"/posts/{Post.Id}#comments");
+        await OnPostClick.InvokeAsync(Post);
     }
 
     private async Task HandleProfileClick()
@@ -306,38 +294,105 @@
         Navigation.NavigateTo($"/profile/{Post.UserName}");
     }
 
+    private async Task HandleOptionsClick()
+    {
+        // Implement options menu (report, block, etc.)
+        // Could show a dropdown or modal
+    }
+
+    private async Task HandleCommentClick()
+    {
+        if (FullPost)
+        {
+            // Scroll to comments section or focus comment input
+            await JSRuntime.InvokeVoidAsync("scrollToElement", "comments-section");
+        }
+        else
+        {
+            // Navigate to post detail page
+            Navigation.NavigateTo($"/post/{Post.Id}");
+        }
+    }
+
     private async Task HandleShare()
     {
         try
         {
-            var postUrl = $"{Navigation.BaseUri}posts/{Post.Id}";
-            var shareText = Post.Content?.Length > 100
-                ? Post.Content.Substring(0, 100) + "..."
-                : Post.Content;
-
-            // Try native Web Share API first
-            await JSRuntime.InvokeVoidAsync("navigator.share", new
+            var shareUrl = $"{Navigation.BaseUri}post/{Post.Id}";
+            var shareData = new
             {
-                url = postUrl,
-                text = shareText,
-                title = $"Post by @{Post.UserName}"
-            });
+                title = $"Post by {Post.Name} (@{Post.UserName})",
+                text = Post.Content?.Length > 100 ? Post.Content[..97] + "..." : Post.Content,
+                url = shareUrl
+            };
+
+            await JSRuntime.InvokeVoidAsync("navigator.share", shareData);
         }
-        catch (Exception)
+        catch
         {
-            try
-            {
-                // Fallback to clipboard copy
-                var postUrl = $"{Navigation.BaseUri}post/{Post.Id}";
-                await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", postUrl);
+            // Fallback to clipboard copy
+            var shareUrl = $"{Navigation.BaseUri}post/{Post.Id}";
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", shareUrl);
 
-                // You might want to show a toast notification here
-                // Toast.ShowSuccess("Link copied to clipboard!");
-            }
-            catch (Exception)
-            {
-                // Silently handle if both methods fail
-            }
+            // Show toast notification
+            await JSRuntime.InvokeVoidAsync("showToast", "Link copied to clipboard!");
         }
+    }
+
+    private async Task HandleMoreActions()
+    {
+        // Implement more actions menu (bookmark, copy link, etc.)
+    }
+
+
+    private async Task HandleQuotedPostClick()
+    {
+        if (ReplyPost != null)
+        {
+            Navigation.NavigateTo($"/post/{ReplyPost.Id}");
+        }
+    }
+
+    private async Task HandleQuotedProfileClick(BasePost quotedPost)
+    {
+        Navigation.NavigateTo($"/profile/{quotedPost.UserName}");
+    }
+
+    private async Task HandlePostVoteChanged(VoteButtons.VoteChangedEventArgs args)
+    {
+        // Update local post data if needed
+        if (Post.Id == args.ContentId)
+        {
+            Post.SupportStatus = args.NewSupportStatus;
+            Post.SupportCount = args.NewSupportCount;
+            CurrentSupportStatus = args.NewSupportStatus;
+            CurrentSupportCount = args.NewSupportCount;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleViewLikes()
+    {
+        // Navigate to likes view
+        Navigation.NavigateTo($"/posts/{Post.Id}/likes");
+    }
+
+    private async Task HandleViewComments()
+    {
+        // Navigate to comments or scroll to comments
+        if (FullPost)
+        {
+            await JSRuntime.InvokeVoidAsync("scrollToElement", "comments-section");
+        }
+        else
+        {
+            Navigation.NavigateTo($"/posts/{Post.Id}#comments");
+        }
+    }
+
+    private async Task HandleViewShares()
+    {
+        // Navigate to shares/reposts view
+        Navigation.NavigateTo($"/posts/{Post.Id}/shares");
     }
 }

@@ -1,0 +1,347 @@
+﻿/* Toxiq.WebApp.Client/wwwroot/css/reply-card.css */
+/* ReplyCard Component Styles - Matches Mobile App ReplyCardControl */
+
+.reply-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--transparent-white);
+    border-radius: 8px;
+    margin: 8px 0;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+    .reply-card:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Reply Type Specific Styling */
+    .reply-card.reply-echo {
+        border-left: 3px solid var(--info-color);
+    }
+
+    .reply-card.reply-comment {
+        border-left: 3px solid var(--success-color);
+    }
+
+    .reply-card.reply-note {
+        border-left: 3px solid var(--warning-color);
+    }
+
+    .reply-card.reply-burn {
+        box-shadow: 0 0 8px rgba(255, 107, 53, 0.2);
+    }
+
+.reply-content {
+    padding: 12px;
+}
+
+/* Reply Header */
+.reply-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.reply-author {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+    .reply-author:hover {
+        opacity: 0.8;
+    }
+
+.reply-author-name {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--white);
+}
+
+.reply-author-username {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gray-300);
+    opacity: 0.8;
+}
+
+.reply-burn-indicator {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Reply Content */
+.reply-text {
+    font-size: 15px;
+    line-height: 1.3;
+    color: var(--white);
+    margin-bottom: 6px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Reply Media */
+.reply-media {
+    margin: 6px 0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.reply-image {
+    max-width: 100%;
+    max-height: 120px;
+    border-radius: 6px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+    .reply-image:hover {
+        transform: scale(1.02);
+    }
+
+.reply-video {
+    max-width: 100%;
+    max-height: 120px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+/* Link Preview */
+.reply-link-preview {
+    margin: 6px 0;
+    border: 1px solid var(--transparent-white);
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.link-preview-content {
+    padding: 8px;
+}
+
+.link-preview-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.link-preview-description {
+    font-size: 12px;
+    color: var(--gray-300);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.link-preview-url {
+    font-size: 11px;
+    color: var(--gray-400);
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Reply Stats */
+.reply-stats {
+    display: flex;
+    gap: 16px;
+    margin: 6px 0;
+    opacity: 0.7;
+    font-size: 11px;
+    color: var(--gray-300);
+}
+
+.reply-stat-item {
+    font-weight: 500;
+}
+
+/* Reply Actions */
+.reply-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reply-action-btn {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: none;
+    border-radius: 12px;
+    color: var(--white);
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+    min-height: 24px;
+}
+
+    .reply-action-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .reply-action-btn .btn-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .reply-action-btn .btn-icon svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+    .reply-action-btn .btn-text {
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+/* Compact styling when nested */
+.post-card .reply-card {
+    margin: 6px 0 8px 0;
+    border-radius: 6px;
+}
+
+    .post-card .reply-card .reply-content {
+        padding: 8px 10px;
+    }
+
+    .post-card .reply-card .reply-author-name,
+    .post-card .reply-card .reply-author-username {
+        font-size: 13px;
+    }
+
+    .post-card .reply-card .reply-text {
+        font-size: 14px;
+        line-height: 1.2;
+    }
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .reply-content {
+        padding: 10px;
+    }
+
+    .reply-header {
+        margin-bottom: 4px;
+    }
+
+    .reply-author-name,
+    .reply-author-username {
+        font-size: 13px;
+    }
+
+    .reply-text {
+        font-size: 14px;
+        line-height: 1.2;
+    }
+
+    .reply-image,
+    .reply-video {
+        max-height: 100px;
+    }
+
+    .reply-actions {
+        gap: 6px;
+    }
+
+    .reply-action-btn {
+        padding: 3px 6px;
+        font-size: 11px;
+        min-height: 22px;
+    }
+
+        .reply-action-btn .btn-icon svg {
+            width: 12px;
+            height: 12px;
+        }
+
+        .reply-action-btn .btn-text {
+            font-size: 10px;
+        }
+
+    .reply-stats {
+        font-size: 10px;
+        gap: 12px;
+    }
+}
+
+/* Small Mobile (iPhone SE, etc.) */
+@media (max-width: 375px) {
+    .reply-content {
+        padding: 8px;
+    }
+
+    .reply-actions {
+        gap: 4px;
+    }
+
+    .reply-action-btn .btn-text {
+        display: none; /* Hide text on very small screens */
+    }
+
+    .reply-image,
+    .reply-video {
+        max-height: 80px;
+    }
+}
+
+/* Dark mode specific adjustments */
+@media (prefers-color-scheme: dark) {
+    .reply-card {
+        border-color: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+        .reply-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+    .reply-action-btn {
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+
+        .reply-action-btn:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .reply-card {
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .reply-action-btn {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .reply-card,
+    .reply-action-btn,
+    .reply-author,
+    .reply-image {
+        transition: none;
+    }
+}
