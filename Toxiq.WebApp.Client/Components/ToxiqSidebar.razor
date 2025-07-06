@@ -1,0 +1,511 @@
+﻿@* Toxiq.WebApp.Client/Components/ToxiqSidebar.razor *@
+@using Microsoft.AspNetCore.Components
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Services.Authentication
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@* Only show sidebar on desktop and when authenticated *@
+@if (isAuthenticated && IsDesktop)
+{
+    <aside class="toxiq-sidebar @(isCollapsed ? "collapsed" : "")">
+        <!-- Logo Section -->
+        <div class="sidebar-logo" @onclick="ToggleCollapse">
+            <div class="logo-icon">
+                <Logo Width="40" Height="40" Color="#262626" />
+            </div>
+            @if (!isCollapsed)
+            {
+                <div class="logo-text">Ashi</div>
+            }
+        </div>
+
+        <!-- Navigation Items -->
+        <nav class="sidebar-nav">
+            <div class="nav-item-wrapper">
+                <a href="/" class="nav-item @(IsCurrentPage("/") ? "active" : "")" title="Home">
+                    <span class="nav-icon">🏠</span>
+                    @if (!isCollapsed)
+                    {
+                        <span class="nav-text">Home</span>
+                    }
+                </a>
+            </div>
+
+        @*     <div class="nav-item-wrapper">
+                <a href="/explore" class="nav-item @(IsCurrentPage("/explore") ? "active" : "")" title="Explore">
+                    <span class="nav-icon">🔍</span>
+                    @if (!isCollapsed)
+                    {
+                        <span class="nav-text">Explore</span>
+                    }
+                </a>
+            </div> *@
+
+  @*           <div class="nav-item-wrapper">
+                <a href="/notifications" class="nav-item @(IsCurrentPage("/notifications") ? "active" : "")" title="Notifications">
+                    <span class="nav-icon">🔔</span>
+                    @if (!isCollapsed)
+                    {
+                        <span class="nav-text">Notifications</span>
+                    }
+                    @if (notificationCount > 0)
+                    {
+                        <span class="notification-badge">@notificationCount</span>
+                    }
+                </a>
+            </div> *@
+
+            @* <div class="nav-item-wrapper">
+                <a href="/messages" class="nav-item @(IsCurrentPage("/messages") ? "active" : "")" title="Messages">
+                    <span class="nav-icon">📧</span>
+                    @if (!isCollapsed)
+                    {
+                        <span class="nav-text">Messages</span>
+                    }
+                </a>
+            </div> *@
+
+            @* <div class="nav-item-wrapper">
+                <a href="/profile/@(currentUser?.UserName ?? "")" class="nav-item @(IsCurrentPage("/profile") ? "active" : "")" title="Profile">
+                    <span class="nav-icon">👤</span>
+                    @if (!isCollapsed)
+                    {
+                        <span class="nav-text">Profile</span>
+                    }
+                </a>
+            </div> *@
+
+            <div class="nav-item-wrapper">
+                <a href="/settings" class="nav-item @(IsCurrentPage("/settings") ? "active" : "")" title="Settings">
+                    <span class="nav-icon">⚙️</span>
+                    @if (!isCollapsed)
+                    {
+                        <span class="nav-text">Settings</span>
+                    }
+                </a>
+            </div>
+        </nav>
+
+        <!-- Create Post Button -->
+        <button class="create-post-btn" @onclick="NavigateToCreatePost" title="Create Post">
+            @if (isCollapsed)
+            {
+                <span class="create-post-icon">+</span>
+            }
+            else
+            {
+                <span class="create-post-text">Create Post</span>
+            }
+        </button>
+
+        <!-- User Section -->
+        @if (currentUser != null)
+        {
+            <div class="sidebar-user">
+                <div class="user-info" @onclick="NavigateToProfile" title="@currentUser.UserName">
+                    <div class="user-avatar">
+                        @GetUserInitials()
+                    </div>
+                    @if (!isCollapsed)
+                    {
+                        <div class="user-details">
+                            <div class="user-name">@(currentUser.Name ?? currentUser.UserName)</div>
+                            <div class="user-username">@@@currentUser.UserName</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </aside>
+}
+
+<style>
+    /* Sidebar Container */
+    .toxiq-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        width: 280px;
+        background: #0a0a0a;
+        border-right: 1px solid #262626;
+        display: flex;
+        flex-direction: column;
+        padding: 1.5rem 0;
+        z-index: 1001;
+        transition: width 0.3s ease, transform 0.3s ease;
+        overflow: hidden;
+    }
+
+        .toxiq-sidebar.collapsed {
+            width: 88px;
+        }
+
+    /* Logo Section */
+    .sidebar-logo {
+        padding: 0 1.5rem 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .collapsed .sidebar-logo {
+        padding: 0 0 2rem;
+        justify-content: center;
+    }
+
+    .logo-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .logo-text {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        transition: opacity 0.3s ease;
+    }
+
+    .collapsed .logo-text {
+        opacity: 0;
+        width: 0;
+        overflow: hidden;
+    }
+
+    /* Navigation */
+    .sidebar-nav {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0 1rem;
+    }
+
+    .collapsed .sidebar-nav {
+        padding: 0 0.5rem;
+        align-items: center;
+    }
+
+    .nav-item-wrapper {
+        position: relative;
+    }
+
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-radius: 16px;
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        font-size: 1.1rem;
+        font-weight: 500;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .collapsed .nav-item {
+        width: 56px;
+        height: 56px;
+        padding: 1rem;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .nav-item:hover {
+        background-color: #262626;
+        color: white;
+    }
+
+    .nav-item.active {
+        background-color: white;
+        color: black;
+        font-weight: 600;
+    }
+
+    .nav-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .nav-text {
+        font-size: 1.1rem;
+        transition: opacity 0.3s ease;
+    }
+
+    .collapsed .nav-text {
+        opacity: 0;
+        width: 0;
+        overflow: hidden;
+    }
+
+    /* Notification Badge */
+    .notification-badge {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.75rem;
+        background: white;
+        color: black;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        z-index: 1;
+    }
+
+    .collapsed .notification-badge {
+        top: 0.25rem;
+        right: 0.25rem;
+    }
+
+    /* Create Post Button */
+    .create-post-btn {
+        margin: 0 1rem 1.5rem;
+        padding: 1rem 1.5rem;
+        background: white;
+        color: black;
+        border: none;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .collapsed .create-post-btn {
+        width: 56px;
+        height: 56px;
+        padding: 0;
+        margin: 0 0.5rem 1.5rem;
+        border-radius: 50%;
+        font-size: 1.5rem;
+    }
+
+    .create-post-btn:hover {
+        background: #e5e5e5;
+        transform: translateY(-1px);
+    }
+
+    .create-post-icon {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .create-post-text {
+        transition: opacity 0.3s ease;
+    }
+
+    .collapsed .create-post-text {
+        opacity: 0;
+        width: 0;
+        overflow: hidden;
+    }
+
+    /* User Section */
+    .sidebar-user {
+        margin-top: auto;
+        padding: 1rem;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 16px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+    .collapsed .user-info {
+        justify-content: center;
+        padding: 0.75rem 0;
+    }
+
+    .user-info:hover {
+        background-color: #262626;
+    }
+
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: white;
+        color: black;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .user-details {
+        display: flex;
+        flex-direction: column;
+        transition: opacity 0.3s ease;
+    }
+
+    .collapsed .user-details {
+        opacity: 0;
+        width: 0;
+        overflow: hidden;
+    }
+
+    .user-name {
+        color: white;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .user-username {
+        color: #a3a3a3;
+        font-size: 0.85rem;
+    }
+
+    /* Responsive Behavior - Hide on mobile/tablet */
+    @@media (max-width: 1024px) {
+        .toxiq-sidebar
+
+    {
+        transform: translateX(-100%);
+        pointer-events: none;
+    }
+
+    }
+
+    /* Ensure content doesn't overlap sidebar on desktop */
+    @@media (min-width: 1025px) {
+        .toxiq-sidebar ~ *
+
+    {
+        margin-left: 280px;
+    }
+
+    .toxiq-sidebar.collapsed ~ * {
+        margin-left: 88px;
+    }
+
+    }
+</style>
+
+@code {
+    private bool isAuthenticated = false;
+    private UserProfile currentUser;
+    private bool isCollapsed = false;
+    private int notificationCount = 0; // You can bind this to actual notification service
+    private bool IsDesktop => true; // You can implement actual responsive detection
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to authentication state changes
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+        // Check initial authentication state
+        await CheckAuthenticationState();
+    }
+
+    private async Task CheckAuthenticationState()
+    {
+        try
+        {
+            isAuthenticated = await AuthService.IsAuthenticatedAsync();
+            if (isAuthenticated)
+            {
+                currentUser = await AuthService.GetCurrentUserAsync();
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking auth state: {ex.Message}");
+        }
+    }
+
+    private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
+    {
+        isAuthenticated = e.IsAuthenticated;
+        currentUser = e.User;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleCollapse()
+    {
+        isCollapsed = false;
+        Navigation.NavigateTo($"/");
+    }
+
+    private bool IsCurrentPage(string path)
+    {
+        var currentPath = Navigation.Uri.Replace(Navigation.BaseUri, "/");
+
+        // Handle home page special case
+        if (path == "/" && (currentPath == "/" || currentPath == ""))
+            return true;
+
+        // Handle profile page special case
+        if (path == "/profile" && currentPath.StartsWith("/profile"))
+            return true;
+
+        return currentPath.StartsWith(path) && path != "/";
+    }
+
+    private void NavigateToCreatePost()
+    {
+        Navigation.NavigateTo("/create-post");
+    }
+
+    private void NavigateToProfile()
+    {
+        if (currentUser?.UserName != null)
+        {
+            Navigation.NavigateTo($"/profile/{currentUser.UserName}");
+        }
+    }
+
+    private string GetUserInitials()
+    {
+        if (currentUser?.Name != null)
+        {
+            var names = currentUser.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (names.Length >= 2)
+                return $"{names[0][0]}{names[1][0]}".ToUpper();
+            if (names.Length == 1)
+                return names[0][0].ToString().ToUpper();
+        }
+
+        if (currentUser?.UserName != null)
+        {
+            return currentUser.UserName[0].ToString().ToUpper();
+        }
+
+        return "U";
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}
