@@ -6,7 +6,7 @@
 @using Microsoft.FluentUI.AspNetCore.Components
 @using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
 @using Toxiq.WebApp.Client.Services.Authentication
-@using Toxiq.WebApp.Client.Services.Notifications
+@using Toxiq.WebApp.Client.Services.SignalR
 @inject INotificationService NotificationService
 @inject ISignalRService SignalRService
 @inject IJSRuntime JSRuntime
@@ -136,7 +136,7 @@
     {
         try
         {
-            if (!SignalRService.IsConnected)
+            if (!SignalRService.IsNotificationConnected)
             {
                 var token = await AuthService.GetTokenAsync();
                 if (!string.IsNullOrEmpty(token))

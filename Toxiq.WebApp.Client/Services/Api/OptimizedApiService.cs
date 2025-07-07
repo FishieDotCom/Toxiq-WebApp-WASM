@@ -95,6 +95,21 @@ namespace Toxiq.WebApp.Client.Services.Api
             return JsonSerializer.Deserialize<T>(responseJson, JsonOptions);
         }
 
+        internal async ValueTask<T> PutAsync<T>(string endpoint, object data)
+        {
+            await EnsureAuthenticatedAsync();
+
+            var json = JsonSerializer.Serialize(data, JsonOptions);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PutAsync(endpoint, content);
+            response.EnsureSuccessStatusCode();
+
+            var responseJson = await response.Content.ReadAsStringAsync();
+            return JsonSerializer.Deserialize<T>(responseJson, JsonOptions);
+        }
+
+
         internal async ValueTask<HttpResponseMessage> GetRawAsync(string endpoint)
         {
             await EnsureAuthenticatedAsync();
@@ -110,6 +125,19 @@ namespace Toxiq.WebApp.Client.Services.Api
 
             return await _httpClient.PostAsync(endpoint, content);
         }
+
+
+        internal async Task<HttpResponseMessage> DeleteAsync(string endpoint)
+        {
+            await EnsureAuthenticatedAsync();
+
+
+            var response = await _httpClient.DeleteAsync(endpoint);
+            response.EnsureSuccessStatusCode();
+
+            return response;
+        }
+
 
         private async ValueTask EnsureAuthenticatedAsync()
         {

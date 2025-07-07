@@ -1,8 +1,8 @@
 ﻿@page "/signalr-debug"
 @using Toxiq.Mobile.Dto
-@using Toxiq.WebApp.Client.Services.Notifications
 @using Toxiq.WebApp.Client.Services.Authentication
 @using Microsoft.AspNetCore.SignalR.Client
+@using Toxiq.WebApp.Client.Services.SignalR
 @inject ISignalRService SignalRService
 @inject IAuthenticationService AuthService
 @implements IAsyncDisposable
@@ -112,7 +112,7 @@
 
     private async Task CheckConnectionStatus()
     {
-        isConnected = SignalRService.IsConnected;
+        isConnected = SignalRService.IsNotificationConnected;
         AddLog("INFO", $"Connection status: {(isConnected ? "Connected" : "Disconnected")}");
     }
 

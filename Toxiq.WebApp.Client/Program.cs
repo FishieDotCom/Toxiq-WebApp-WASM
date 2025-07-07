@@ -10,7 +10,6 @@ using Toxiq.WebApp.Client.Services.Authentication;
 using Toxiq.WebApp.Client.Services.Caching;
 using Toxiq.WebApp.Client.Services.JavaScript;
 using Toxiq.WebApp.Client.Services.LazyLoading;
-using Toxiq.WebApp.Client.Services.Notifications;
 using Toxiq.WebApp.Client.Services.Platform;
 
 namespace Toxiq.WebApp.Client
@@ -64,11 +63,30 @@ namespace Toxiq.WebApp.Client
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<ITelegramAuthJsInvoker, TelegramAuthJsInvoker>();
 
-            builder.Services.AddSingleton<ISignalRService, SignalRService>();
-
-
             // Notification services - FIXED: Register in correct order
             builder.Services.AddScoped<INotificationService, NotificationService>();
+
+
+            var baseUrl = builder.Configuration["ApiBaseUrl"]?.TrimEnd('/').Replace("/api", "") ?? "https://toxiq.xyz";
+            builder.Services.AddSignalRHubGateway(baseUrl);
+
+
+            builder.Services.AddChatServices();
+
+
+            builder.Services.ConfigureChatOptions(options =>
+            {
+                options.DefaultPageSize = 20;
+                options.MaxMessageLength = 500;
+                options.EnableRealTimeNotifications = true;
+                options.EnableBrowserNotifications = true;
+                options.AutoScrollToNewMessages = true;
+                options.ShowTypingIndicators = true;
+                options.MessageEditTimeLimitMinutes = 15;
+                options.EnableMessageReactions = true;
+                options.EnableFileAttachments = true;
+                options.MaxFileSize = 10 * 1024 * 1024; // 10MB
+            });
 
             // Additional services
             builder.Services.AddScoped<ILazyLoader, LazyLoader>();

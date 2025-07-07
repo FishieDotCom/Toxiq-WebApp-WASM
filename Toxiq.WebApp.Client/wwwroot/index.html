@@ -21,6 +21,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.0/signalr.min.js"></script>
     <!-- Telegram WebApp Script - Load before our scripts -->
     <!--<script>eruda.init()</script>-->
+    <script src="js/chat-helpers.js"></script>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -107,6 +108,24 @@
 
     <!-- Telegram Authentication JavaScript -->
     <script src="js/telegram-auth.js"></script>
+
+
+    <!--<script>
+        // Initialize chat features
+        window.addEventListener('load', () => {
+            // Set up service worker for offline chat functionality
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('SW registered'))
+                    .catch(error => console.log('SW registration failed'));
+            }
+
+            // Set up push notification support
+            if ('PushManager' in window) {
+                // Push notification setup will be handled by the chat service
+            }
+        });
+    </script>-->
 
     <script>
         // Platform detection for responsive behavior

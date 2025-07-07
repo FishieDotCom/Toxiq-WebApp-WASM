@@ -1,0 +1,1095 @@
+﻿
+@page "/chat"
+@page "/messages"
+@page "/chat/{ConversationId:guid}"
+@using Toxiq.WebApp.Client.Domain.Chat.Models
+@using Toxiq.WebApp.Client.Services.Chat
+@using Toxiq.WebApp.Client.Components.Chat
+@inject IChatService ChatService
+@inject IJSRuntime JSRuntime
+@inject ILogger<ChatPage> Logger
+@implements IDisposable
+
+<PageTitle>Messages - Toxiq</PageTitle>
+
+<div class="chat-container">
+    <!-- Mobile: Single view, Desktop: Split view -->
+    <div class="chat-layout @(IsMobile ? "mobile" : "desktop")">
+
+        <!-- Conversation List Panel -->
+        <div class="conversations-panel @(ShowConversationList ? "visible" : "hidden")">
+            <ConversationList Conversations="conversations"
+                              SelectedConversation="selectedConversation"
+                              OnConversationSelected="@SelectConversation"
+                              OnNewChatRequested="@StartNewChat"
+                              OnRefreshRequested="@RefreshConversations"
+                              IsLoading="isLoadingConversations"
+                              ShowSearchBar="true" />
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="chat-panel @(ShowChatPanel ? "visible" : "hidden")">
+            @if (selectedConversation != null)
+            {
+                <!-- Chat Header -->
+                <div class="chat-header">
+                    @if (IsMobile)
+                    {
+                        <button class="back-btn" @onclick="BackToConversationList">
+                            ←
+                        </button>
+                    }
+
+                    <div class="chat-header-info">
+                        <div class="chat-avatar">
+                            <div class="avatar-circle @(selectedConversation.IsGroup ? "group-avatar" : "user-avatar")">
+                                @selectedConversation.UserAvatar
+                            </div>
+                        </div>
+                        <div class="chat-details">
+                            <h2 class="chat-name">@selectedConversation.DisplayName</h2>
+                            <div class="chat-status">
+                                @if (selectedConversation.IsGroup)
+                                {
+                                    <span>@selectedConversation.Participants.Count members</span>
+                                }
+                                else
+                                {
+                                    <span>@GetUserStatus(selectedConversation.OtherParticipant)</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-header-actions">
+                        <button class="header-action-btn" @onclick="ToggleChatInfo" title="Chat info">
+                            ℹ️
+                        </button>
+                        @if (selectedConversation.IsGroup)
+                        {
+                            <button class="header-action-btn" @onclick="ShowGroupSettings" title="Group settings">
+                                ⚙️
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Messages Area -->
+                <div class="messages-container" @ref="messagesContainer">
+                    @if (isLoadingMessages)
+                    {
+                        <div class="loading-messages">
+                            @for (int i = 0; i < 8; i++)
+                            {
+                                <div class="message-skeleton @(i % 2 == 0 ? "left" : "right")">
+                                    <div class="skeleton-bubble"></div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (!currentMessages.Any())
+                    {
+                        <div class="empty-chat">
+                            <div class="empty-chat-icon">💬</div>
+                            <h3 class="empty-chat-title">Start the conversation</h3>
+                            <p class="empty-chat-description">
+                                @if (selectedConversation.IsGroup)
+                                {
+                                    <text>Welcome to @selectedConversation.DisplayName! Send a message to get started.</text>
+                                }
+                                else
+                                {
+                                    <text>This is the beginning of your conversation with @selectedConversation.DisplayName.</text>
+                                }
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <!-- Load more button -->
+                        @if (hasMoreMessages)
+                        {
+                            <div class="load-more-container">
+                                <button class="load-more-btn" @onclick="LoadMoreMessages" disabled="@isLoadingMoreMessages">
+                                    @if (isLoadingMoreMessages)
+                                    {
+                                        <div class="loading-spinner"></div>
+                                        <span>Loading...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Load earlier messages</span>
+                                    }
+                                </button>
+                            </div>
+                        }
+
+                        <!-- Messages -->
+                        @foreach (var message in currentMessages.OrderBy(m => m.Date))
+                        {
+                            <MessageBubble Message="message"
+                                           IsGroupMessage="selectedConversation.IsGroup"
+                                           OnReply="StartReply"
+                                           OnEdit="StartEdit"
+                                           OnDelete="DeleteMessage" />
+                        }
+
+                        <!-- Scroll to bottom target -->
+                        <div @ref="messagesEndRef"></div>
+                    }
+                </div>
+
+                <!-- Message Input -->
+                <div class="message-input-area">
+                    <MessageInput MessageText="@currentMessageText"
+                                  MessageTextChanged="OnMessageTextChanged"
+                                  ReplyToMessage="replyToMessage"
+                                  OnSendMessage="SendMessage"
+                                  OnCancelReply="CancelReply"
+                                  IsDisabled="@isSendingMessage"
+                                  IsSending="@isSendingMessage" />
+                </div>
+            }
+            else
+            {
+                <!-- No conversation selected -->
+                <div class="no-conversation-selected">
+                    <div class="welcome-content">
+                        <div class="welcome-icon">💬</div>
+                        <h2 class="welcome-title">Welcome to Toxiq Messages</h2>
+                        <p class="welcome-description">
+                            Select a conversation from the list to start chatting, or create a new conversation.
+                        </p>
+                        <button class="welcome-start-btn" @onclick="StartNewChat">
+                            Start New Conversation
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Chat Info Modal -->
+@if (showChatInfo && selectedConversation != null)
+{
+    <div class="modal-overlay" @onclick="CloseChatInfo">
+        <div class="chat-info-modal" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Chat Information</h3>
+                <button class="modal-close-btn" @onclick="CloseChatInfo">✕</button>
+            </div>
+            <div class="modal-content">
+                <div class="chat-info-avatar">
+                    <div class="large-avatar @(selectedConversation.IsGroup ? "group-avatar" : "user-avatar")">
+                        @selectedConversation.UserAvatar
+                    </div>
+                </div>
+                <h4 class="chat-info-name">@selectedConversation.DisplayName</h4>
+
+                @if (selectedConversation.IsGroup)
+                {
+                    <div class="group-info">
+                        <p class="member-count">@selectedConversation.Participants.Count members</p>
+                        <div class="members-list">
+                            @foreach (var participant in selectedConversation.Participants)
+                            {
+                                <div class="member-item">
+                                    <span class="member-name">@participant.DisplayName</span>
+                                    @if (participant.IsCurrentUser)
+                                    {
+                                        <span class="member-badge">You</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="user-info">
+                        <p class="user-status">@GetUserStatus(selectedConversation.OtherParticipant)</p>
+                    </div>
+                }
+
+                <div class="chat-actions">
+                    <button class="action-btn danger" @onclick="LeaveConversation">
+                        @(selectedConversation.IsGroup ? "Leave Group" : "Delete Conversation")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .chat-container {
+        height: 100vh;
+        background-color: var(--black);
+        color: var(--white);
+        font-family: var(--font-family);
+    }
+
+    .chat-layout {
+        display: grid;
+        height: 100%;
+    }
+
+        .chat-layout.desktop {
+            grid-template-columns: 360px 1fr;
+        }
+
+        .chat-layout.mobile {
+            grid-template-columns: 1fr;
+        }
+
+    .conversations-panel,
+    .chat-panel {
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .conversations-panel {
+        border-right: 1px solid var(--gray-800);
+    }
+
+    /* Mobile responsive behavior */
+    @@media (max-width: 768px) {
+        .chat-layout.mobile .conversations-panel.hidden
+
+    {
+        display: none;
+    }
+
+    .chat-layout.mobile .chat-panel.hidden {
+        display: none;
+    }
+
+    }
+
+    /* Chat Header */
+    .chat-header {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border-bottom: 1px solid var(--gray-800);
+        background-color: var(--off-black);
+        gap: 1rem;
+    }
+
+    .back-btn {
+        background: none;
+        border: none;
+        color: var(--white);
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 8px;
+        transition: background-color 0.2s ease;
+    }
+
+        .back-btn:hover {
+            background-color: var(--gray-800);
+        }
+
+    .chat-header-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+    }
+
+    .chat-avatar .avatar-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 16px;
+        color: var(--white);
+    }
+
+    .user-avatar {
+        background: linear-gradient(135deg, var(--profile-color-purple), var(--profile-color-blue));
+    }
+
+    .group-avatar {
+        background: linear-gradient(135deg, var(--profile-color-green), var(--profile-color-teal));
+    }
+
+    .chat-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .chat-name {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--white);
+        margin: 0;
+    }
+
+    .chat-status {
+        font-size: 13px;
+        color: var(--gray-400);
+    }
+
+    .chat-header-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .header-action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: none;
+        background-color: var(--gray-800);
+        color: var(--gray-300);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        font-size: 14px;
+    }
+
+        .header-action-btn:hover {
+            background-color: var(--gray-700);
+            color: var(--white);
+        }
+
+    /* Messages Container */
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        height: calc(100vh - 140px); /* Adjust based on header and input heights */
+    }
+
+    .loading-messages {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem 0;
+    }
+
+    .message-skeleton {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+    }
+
+        .message-skeleton.left {
+            justify-content: flex-start;
+        }
+
+        .message-skeleton.right {
+            justify-content: flex-end;
+        }
+
+    .skeleton-bubble {
+        width: 200px;
+        height: 40px;
+        border-radius: 18px;
+        background: linear-gradient(90deg, var(--gray-800) 25%, var(--gray-700) 50%, var(--gray-800) 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+    }
+
+    .message-skeleton.right .skeleton-bubble {
+        background: linear-gradient(90deg, var(--profile-color-default) 25%, var(--profile-color-blue) 50%, var(--profile-color-default) 75%);
+        background-size: 200% 100%;
+        animation: loading 1.5s infinite;
+        opacity: 0.3;
+    }
+
+    .empty-chat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 3rem 2rem;
+        height: 100%;
+    }
+
+    .empty-chat-icon {
+        font-size: 64px;
+        margin-bottom: 1rem;
+        opacity: 0.6;
+    }
+
+    .empty-chat-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--white);
+        margin: 0 0 0.5rem;
+    }
+
+    .empty-chat-description {
+        font-size: 14px;
+        color: var(--gray-400);
+        margin: 0;
+        line-height: 1.5;
+        max-width: 300px;
+    }
+
+    .load-more-container {
+        display: flex;
+        justify-content: center;
+        padding: 1rem 0;
+    }
+
+    .load-more-btn {
+        background-color: var(--gray-800);
+        color: var(--white);
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background-color 0.2s ease;
+    }
+
+        .load-more-btn:hover:not(:disabled) {
+            background-color: var(--gray-700);
+        }
+
+        .load-more-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+    .loading-spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid transparent;
+        border-top: 2px solid var(--white);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    /* Message Input Area */
+    .message-input-area {
+        border-top: 1px solid var(--gray-800);
+    }
+
+    /* No Conversation Selected */
+    .no-conversation-selected {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        padding: 2rem;
+    }
+
+    .welcome-content {
+        text-align: center;
+        max-width: 400px;
+    }
+
+    .welcome-icon {
+        font-size: 80px;
+        margin-bottom: 1.5rem;
+        opacity: 0.6;
+    }
+
+    .welcome-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--white);
+        margin: 0 0 1rem;
+    }
+
+    .welcome-description {
+        font-size: 16px;
+        color: var(--gray-400);
+        line-height: 1.5;
+        margin: 0 0 2rem;
+    }
+
+    .welcome-start-btn {
+        background-color: var(--profile-color-default);
+        color: var(--white);
+        border: none;
+        border-radius: 12px;
+        padding: 1rem 2rem;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .welcome-start-btn:hover {
+            background-color: var(--profile-color-blue);
+            transform: translateY(-1px);
+        }
+
+    /* Chat Info Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 2rem;
+    }
+
+    .chat-info-modal {
+        background-color: var(--gray-950);
+        border-radius: 16px;
+        max-width: 400px;
+        width: 100%;
+        max-height: 80vh;
+        overflow-y: auto;
+        border: 1px solid var(--gray-800);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--gray-800);
+    }
+
+        .modal-header h3 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--white);
+            margin: 0;
+        }
+
+    .modal-close-btn {
+        background: none;
+        border: none;
+        color: var(--gray-400);
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: all 0.2s ease;
+    }
+
+        .modal-close-btn:hover {
+            background-color: var(--gray-800);
+            color: var(--white);
+        }
+
+    .modal-content {
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .chat-info-avatar {
+        margin-bottom: 1.5rem;
+    }
+
+    .large-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 32px;
+        color: var(--white);
+        margin: 0 auto;
+    }
+
+    .chat-info-name {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--white);
+        margin: 0 0 1rem;
+    }
+
+    .group-info,
+    .user-info {
+        margin-bottom: 2rem;
+    }
+
+    .member-count {
+        color: var(--gray-400);
+        margin: 0 0 1rem;
+    }
+
+    .members-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .member-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: 0.5rem 0;
+    }
+
+    .member-name {
+        color: var(--white);
+        font-weight: 500;
+    }
+
+    .member-badge {
+        background-color: var(--profile-color-default);
+        color: var(--white);
+        font-size: 11px;
+        font-weight: 600;
+        padding: 0.25rem 0.5rem;
+        border-radius: 8px;
+    }
+
+    .user-status {
+        color: var(--gray-400);
+        margin: 0;
+    }
+
+    .chat-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .action-btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .action-btn.danger {
+            background-color: var(--error-color);
+            color: var(--white);
+        }
+
+            .action-btn.danger:hover {
+                background-color: #dc2626;
+                transform: translateY(-1px);
+            }
+
+    /* Responsive Design */
+    @@media (max-width: 768px) {
+        .chat-layout.desktop
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    .conversations-panel {
+        border-right: none;
+        border-bottom: 1px solid var(--gray-800);
+    }
+
+    .messages-container {
+        height: calc(100vh - 160px);
+    }
+
+    .modal-overlay {
+        padding: 1rem;
+    }
+
+    .chat-info-modal {
+        max-height: 90vh;
+    }
+
+    }
+
+    @@keyframes loading {
+        0%
+
+    {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+
+    }
+
+    @@keyframes spin {
+        0%
+
+    {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+
+    }
+</style>
+
+@code {
+    [Parameter] public Guid? ConversationId { get; set; }
+
+    private List<ChatConversation> conversations = new();
+    private ChatConversation? selectedConversation;
+    private List<ChatMessage> currentMessages = new();
+    private ChatMessage? replyToMessage;
+    private string currentMessageText = string.Empty;
+
+    private bool isLoadingConversations = true;
+    private bool isLoadingMessages = false;
+    private bool isLoadingMoreMessages = false;
+    private bool isSendingMessage = false;
+    private bool showChatInfo = false;
+    private bool hasMoreMessages = false;
+    private int currentPage = 1;
+    private const int MessagesPageSize = 20;
+
+    private ElementReference messagesContainer;
+    private ElementReference messagesEndRef;
+    private bool IsMobile = false;
+    private bool ShowConversationList => !IsMobile || selectedConversation == null;
+    private bool ShowChatPanel => !IsMobile || selectedConversation != null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to chat events
+        ChatService.NewMessageReceived += OnNewMessageReceived;
+        ChatService.ConversationsUpdated += OnConversationsUpdated;
+        ChatService.MessageUpdated += OnMessageUpdated;
+
+        // Check if mobile
+        //IsMobile = await JSRuntime.InvokeAsync<bool>("window.matchMedia", "(max-width: 768px)").ConfigureAwait(false);
+
+        // Load conversations
+        await LoadConversations();
+
+        // If ConversationId is provided, select that conversation
+        if (ConversationId.HasValue)
+        {
+            var conversation = conversations.FirstOrDefault(c => c.Id == ConversationId.Value);
+            if (conversation != null)
+            {
+                await SelectConversation(conversation);
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && selectedConversation != null)
+        {
+            await ScrollToBottom();
+        }
+    }
+
+    private async Task LoadConversations()
+    {
+        try
+        {
+            isLoadingConversations = true;
+            StateHasChanged();
+
+            conversations = await ChatService.GetConversationsAsync(true);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading conversations");
+        }
+        finally
+        {
+            isLoadingConversations = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SelectConversation(ChatConversation conversation)
+    {
+        selectedConversation = conversation;
+        currentMessages.Clear();
+        currentPage = 1;
+        hasMoreMessages = false;
+
+        // Mark conversation as read
+        await ChatService.MarkConversationAsReadAsync(conversation.Id);
+
+        // Load messages
+        await LoadMessages();
+
+        StateHasChanged();
+    }
+
+    private async Task LoadMessages()
+    {
+        if (selectedConversation == null) return;
+
+        try
+        {
+            isLoadingMessages = true;
+            StateHasChanged();
+
+            var result = await ChatService.GetMessagesAsync(selectedConversation.Id, currentPage, MessagesPageSize);
+            currentMessages = result.Messages;
+            hasMoreMessages = result.HasMoreMessages;
+
+            await ScrollToBottom();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading messages for conversation {ConversationId}", selectedConversation.Id);
+        }
+        finally
+        {
+            isLoadingMessages = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMoreMessages()
+    {
+        if (selectedConversation == null || isLoadingMoreMessages || !hasMoreMessages) return;
+
+        try
+        {
+            isLoadingMoreMessages = true;
+            StateHasChanged();
+
+            currentPage++;
+            var result = await ChatService.GetMessagesAsync(selectedConversation.Id, currentPage, MessagesPageSize);
+
+            // Prepend older messages
+            currentMessages.InsertRange(0, result.Messages);
+            hasMoreMessages = result.HasMoreMessages;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading more messages");
+            currentPage--; // Rollback page increment on error
+        }
+        finally
+        {
+            isLoadingMoreMessages = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SendMessage(SendMessageRequest request)
+    {
+        if (selectedConversation == null || isSendingMessage) return;
+
+        try
+        {
+            isSendingMessage = true;
+            request.ConversationId = selectedConversation.Id;
+
+            var message = await ChatService.SendMessageAsync(request);
+
+            // Message is added optimistically via event handler
+            await ScrollToBottom();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error sending message");
+        }
+        finally
+        {
+            isSendingMessage = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartReply(ChatMessage message)
+    {
+        replyToMessage = message;
+        StateHasChanged();
+
+        // Focus input (handled in MessageInput component)
+    }
+
+    private async Task StartEdit(ChatMessage message)
+    {
+        // TODO: Implement edit functionality
+        currentMessageText = message.Content;
+        StateHasChanged();
+    }
+
+    private async Task DeleteMessage(ChatMessage message)
+    {
+        try
+        {
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this message?");
+            if (!confirmed) return;
+
+            var success = await ChatService.DeleteMessageAsync(message.Id);
+            if (success)
+            {
+                currentMessages.Remove(message);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting message {MessageId}", message.Id);
+        }
+    }
+
+    private Task CancelReply()
+    {
+        replyToMessage = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task OnMessageTextChanged(string text)
+    {
+        currentMessageText = text;
+        return Task.CompletedTask;
+    }
+
+    private async Task BackToConversationList()
+    {
+        selectedConversation = null;
+        replyToMessage = null;
+        currentMessages.Clear();
+        StateHasChanged();
+    }
+
+    private async Task StartNewChat()
+    {
+        // TODO: Implement new chat functionality
+        await JSRuntime.InvokeVoidAsync("alert", "New chat functionality coming soon!");
+    }
+
+    private async Task RefreshConversations()
+    {
+        await LoadConversations();
+    }
+
+    private void ToggleChatInfo()
+    {
+        showChatInfo = !showChatInfo;
+        StateHasChanged();
+    }
+
+    private void CloseChatInfo()
+    {
+        showChatInfo = false;
+        StateHasChanged();
+    }
+
+    private async Task ShowGroupSettings()
+    {
+        // TODO: Implement group settings
+        await JSRuntime.InvokeVoidAsync("alert", "Group settings coming soon!");
+    }
+
+    private async Task LeaveConversation()
+    {
+        if (selectedConversation == null) return;
+
+        var action = selectedConversation.IsGroup ? "leave this group" : "delete this conversation";
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to {action}?");
+
+        if (confirmed)
+        {
+            // TODO: Implement leave/delete functionality
+            await JSRuntime.InvokeVoidAsync("alert", "Leave/delete functionality coming soon!");
+        }
+    }
+
+    private string GetUserStatus(ChatParticipant? participant)
+    {
+        if (participant == null) return "Unknown";
+
+        return participant.IsOnline ? "Online" :
+               participant.LastSeen?.ToString("Last seen MMM dd") ?? "Offline";
+    }
+
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            await Task.Delay(50); // Allow DOM to update
+            await JSRuntime.InvokeVoidAsync("scrollToBottom", messagesEndRef);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Error scrolling to bottom");
+        }
+    }
+
+    #region Event Handlers
+
+    private async void OnNewMessageReceived(object? sender, ChatMessage message)
+    {
+        await InvokeAsync(() =>
+        {
+            // Add to current conversation if it matches
+            if (selectedConversation?.Id == message.ConversationId)
+            {
+                currentMessages.Add(message);
+                Task.Run(ScrollToBottom); // Don't await to avoid blocking
+            }
+
+            // Update conversation in list
+            var conversation = conversations.FirstOrDefault(c => c.Id == message.ConversationId);
+            conversation?.UpdateLastMessage(message);
+
+            StateHasChanged();
+        });
+    }
+
+    private async void OnConversationsUpdated(object? sender, List<ChatConversation> updatedConversations)
+    {
+        await InvokeAsync(() =>
+        {
+            conversations = updatedConversations;
+            StateHasChanged();
+        });
+    }
+
+    private async void OnMessageUpdated(object? sender, ChatMessage updatedMessage)
+    {
+        await InvokeAsync(() =>
+        {
+            var existingMessage = currentMessages.FirstOrDefault(m => m.Id == updatedMessage.Id);
+            if (existingMessage != null)
+            {
+                // Update properties
+                existingMessage.Content = updatedMessage.Content;
+                existingMessage.IsEdited = updatedMessage.IsEdited;
+                existingMessage.IsDelivered = updatedMessage.IsDelivered;
+                existingMessage.IsFailed = updatedMessage.IsFailed;
+
+                StateHasChanged();
+            }
+        });
+    }
+
+    #endregion
+
+    public void Dispose()
+    {
+        ChatService.NewMessageReceived -= OnNewMessageReceived;
+        ChatService.ConversationsUpdated -= OnConversationsUpdated;
+        ChatService.MessageUpdated -= OnMessageUpdated;
+    }
+}

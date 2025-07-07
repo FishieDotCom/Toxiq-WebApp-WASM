@@ -2,7 +2,7 @@
 using Microsoft.JSInterop;
 using Toxiq.Mobile.Dto;
 using Toxiq.WebApp.Client.Services.Caching;
-using Toxiq.WebApp.Client.Services.Notifications;
+using Toxiq.WebApp.Client.Services.SignalR;
 
 namespace Toxiq.WebApp.Client.Services.Api
 {
