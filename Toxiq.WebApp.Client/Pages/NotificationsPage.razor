@@ -1,0 +1,558 @@
+﻿@* Toxiq.WebApp.Client/Pages/NotificationsPage.razor *@
+@page "/notifications"
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Components
+@using Toxiq.WebApp.Client.Services.Api
+@using Microsoft.FluentUI.AspNetCore.Components
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+@using Toxiq.WebApp.Client.Services.Notifications
+@inject INotificationService NotificationService
+@inject ISignalRService SignalRService
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<PageTitle>Notifications - Toxiq</PageTitle>
+
+<!-- Top Navigation Bar -->
+<TopNavBar ShowBackButton="true" PageTitle="Notifications">
+    <ExtraOptions>
+        @if (notifications.Any())
+        {
+            <button class="nav-action-button" @onclick="MarkAllAsRead" title="Mark all as read">
+                <FluentIcon Value="@(new Icons.Regular.Size20.CheckmarkCircle().WithColor("#ffffff"))" />
+            </button>
+        }
+    </ExtraOptions>
+</TopNavBar>
+
+<!-- Main Content -->
+<div class="notifications-container centered-container">
+
+    <!-- Connection Status (only show if disconnected) -->
+    @if (!isSignalRConnected)
+    {
+        <div class="connection-status">
+            <FluentIcon Value="@(new Icons.Regular.Size16.PlugDisconnected().WithColor("#feca57"))" />
+            <span>Real-time updates disconnected</span>
+        </div>
+    }
+
+    <!-- Loading State -->
+    @if (isLoading)
+    {
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Loading notifications...</p>
+        </div>
+    }
+    else if (hasError)
+    {
+        <div class="error-container">
+        <FluentIcon Value="@(new Icons.Regular.Size48.ErrorCircle().WithColor("#ff6b6b"))" />
+        <h3>Unable to load notifications</h3>
+        <p>Please check your connection and try again.</p>
+        <button class="retry-button" @onclick="LoadNotifications">
+            <FluentIcon Value="@(new Icons.Regular.Size16.ArrowSync().WithColor("#ffffff"))" />
+            Retry
+        </button>
+        </div>
+    }
+    else if (!notifications.Any())
+    {
+    <div class="empty-state">
+        <FluentIcon Value="@(new Icons.Regular.Size48.Fingerprint().WithColor("#a0a0a0"))" />
+        <h3>No notifications yet</h3>
+        <p>When you receive notifications, they'll appear here.</p>
+    </div>
+    }
+    else
+    {
+    <div class="notifications-list">
+        @foreach (var notification in notifications)
+        {
+            <NotificationItem Notification="notification"
+                              IsUnread="IsNotificationUnread(notification)"
+                              OnNotificationClick="HandleNotificationClick" />
+        }
+    </div>
+
+    <!-- Load More Button (if needed for pagination) -->
+    @if (hasMoreNotifications)
+    {
+        <div class="load-more-container">
+            <button class="load-more-button" @onclick="LoadMoreNotifications" disabled="@isLoadingMore">
+                @if (isLoadingMore)
+                {
+                    <div class="button-spinner"></div>
+                    <span>Loading...</span>
+                }
+                else
+                {
+                    <FluentIcon Value="@(new Icons.Regular.Size16.ArrowDown().WithColor("#ffffff"))" />
+                    <span>Load more</span>
+                }
+            </button>
+        </div>
+    }
+    }
+</div>
+
+@code {
+    private List<NotificationDto> notifications = new();
+    private DateTime? lastReadTime;
+    private bool isLoading = true;
+    private bool hasError = false;
+    private bool isSignalRConnected = false;
+    private bool hasMoreNotifications = false;
+    private bool isLoadingMore = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Subscribe to notification service events
+            NotificationService.NewNotificationReceived += OnNewNotificationReceived;
+            NotificationService.UnreadCountChanged += OnUnreadCountChanged;
+
+            // Subscribe to SignalR events
+            SignalRService.NotificationReceived += OnSignalRNotificationReceived;
+            SignalRService.ConnectionStateChanged += OnSignalRConnectionStateChanged;
+
+            // Load initial data
+            await LoadNotifications();
+
+            // Start SignalR connection
+            await StartSignalRConnection();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing notifications page: {ex.Message}");
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Load notifications from API and cache
+    /// </summary>
+    private async Task LoadNotifications()
+    {
+        try
+        {
+            isLoading = true;
+            hasError = false;
+            StateHasChanged();
+
+            // Get notifications from service (handles API + cache)
+            var result = await NotificationService.GetNotifications();
+
+            if (result?.Data != null)
+            {
+                notifications = result.Data.OrderByDescending(n => n.Date).ToList();
+
+                // For demo purposes, assume we have more if we got exactly the page size
+                // In real implementation, this would come from the API response
+                hasMoreNotifications = notifications.Count >= 20;
+            }
+
+            // Mark all as read since user is viewing the page
+            await MarkAllAsRead();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading notifications: {ex.Message}");
+            hasError = true;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Load more notifications (pagination)
+    /// </summary>
+    private async Task LoadMoreNotifications()
+    {
+        // Implementation for pagination would go here
+        // For now, just a placeholder
+        isLoadingMore = true;
+        StateHasChanged();
+
+        await Task.Delay(1000); // Simulate API call
+
+        isLoadingMore = false;
+        hasMoreNotifications = false; // No more to load
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Start SignalR connection for real-time updates
+    /// </summary>
+    private async Task StartSignalRConnection()
+    {
+        try
+        {
+            await SignalRService.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error starting SignalR: {ex.Message}");
+            // Continue without real-time updates
+        }
+    }
+
+    /// <summary>
+    /// Mark all notifications as read
+    /// </summary>
+    private async Task MarkAllAsRead()
+    {
+        try
+        {
+            await NotificationService.MarkAllAsRead();
+            lastReadTime = DateTime.UtcNow;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error marking notifications as read: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Handle notification item click
+    /// </summary>
+    private async Task HandleNotificationClick(NotificationDto notification)
+    {
+        // Individual notification clicked - could track analytics here
+        Console.WriteLine($"Notification clicked: {notification.Type} - {notification.Text}");
+    }
+
+    /// <summary>
+    /// Check if notification is unread based on last read time
+    /// </summary>
+    private bool IsNotificationUnread(NotificationDto notification)
+    {
+        if (!notification.Date.HasValue || !lastReadTime.HasValue)
+        {
+            return true; // Assume unread if no timestamps
+        }
+
+        return notification.Date.Value > lastReadTime.Value;
+    }
+
+    /// <summary>
+    /// Handle new notification from service
+    /// </summary>
+    private void OnNewNotificationReceived(object? sender, NotificationDto notification)
+    {
+        InvokeAsync(() =>
+        {
+            // Add to beginning of list
+            notifications.Insert(0, notification);
+
+            // Keep list manageable
+            if (notifications.Count > 100)
+            {
+                notifications = notifications.Take(100).ToList();
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    /// <summary>
+    /// Handle unread count change
+    /// </summary>
+    private void OnUnreadCountChanged(object? sender, int count)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Handle SignalR notification
+    /// </summary>
+    private void OnSignalRNotificationReceived(object? sender, NotificationDto notification)
+    {
+        // This is already handled by the notification service
+        // Just log for debugging
+        Console.WriteLine($"SignalR notification received: {notification.Type}");
+    }
+
+    /// <summary>
+    /// Handle SignalR connection state change
+    /// </summary>
+    private void OnSignalRConnectionStateChanged(object? sender, bool isConnected)
+    {
+        InvokeAsync(() =>
+        {
+            isSignalRConnected = isConnected;
+            StateHasChanged();
+        });
+    }
+
+    /// <summary>
+    /// Cleanup resources
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        // Unsubscribe from events
+        NotificationService.NewNotificationReceived -= OnNewNotificationReceived;
+        NotificationService.UnreadCountChanged -= OnUnreadCountChanged;
+        SignalRService.NotificationReceived -= OnSignalRNotificationReceived;
+        SignalRService.ConnectionStateChanged -= OnSignalRConnectionStateChanged;
+
+        // Stop SignalR connection
+        try
+        {
+            await SignalRService.StopAsync();
+        }
+        catch
+        {
+            // Ignore errors during disposal
+        }
+    }
+}
+
+<style>
+    /* Notifications Page Styles - Matching Mobile App Design */
+    .notifications-container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: var(--black, #0e0e0e);
+        min-height: calc(100vh - 60px); /* Account for top nav */
+    }
+
+    /* Connection Status */
+    .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        background-color: rgba(254, 202, 87, 0.1);
+        border-left: 3px solid #feca57;
+        color: #feca57;
+        font-size: var(--font-size-sm, 14px);
+        margin-bottom: 8px;
+    }
+
+    /* Loading State */
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        text-align: center;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--transparent-white, rgba(255, 255, 255, 0.2));
+        border-top: 3px solid var(--accent-color, #D600AA);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 16px;
+    }
+
+    .loading-text {
+        color: var(--text-secondary, #a0a0a0);
+        font-size: var(--font-size-base, 16px);
+        margin: 0;
+    }
+
+    /* Error State */
+    .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        text-align: center;
+    }
+
+        .error-container h3 {
+            color: var(--text-color, #ffffff);
+            font-size: var(--font-size-lg, 18px);
+            margin: 16px 0 8px;
+        }
+
+        .error-container p {
+            color: var(--text-secondary, #a0a0a0);
+            font-size: var(--font-size-base, 16px);
+            margin: 0 0 24px;
+        }
+
+    .retry-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background-color: var(--accent-color, #D600AA);
+        color: var(--white, #ffffff);
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: var(--font-size-base, 16px);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+
+        .retry-button:hover {
+            background-color: color-mix(in srgb, var(--accent-color, #D600AA) 90%, black);
+        }
+
+    /* Empty State */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 20px;
+        text-align: center;
+    }
+
+        .empty-state h3 {
+            color: var(--text-color, #ffffff);
+            font-size: var(--font-size-lg, 18px);
+            margin: 24px 0 8px;
+        }
+
+        .empty-state p {
+            color: var(--text-secondary, #a0a0a0);
+            font-size: var(--font-size-base, 16px);
+            margin: 0;
+        }
+
+    /* Notifications List */
+    .notifications-list {
+        background-color: var(--card-background, rgba(255, 255, 255, 0.05));
+        border-radius: 12px;
+        margin: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+    }
+
+    /* Load More */
+    .load-more-container {
+        padding: 16px;
+        text-align: center;
+    }
+
+    .load-more-button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background-color: var(--button-secondary-bg, rgba(255, 255, 255, 0.1));
+        color: var(--button-secondary-text, #ffffff);
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: var(--font-size-base, 16px);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        margin: 0 auto;
+    }
+
+        .load-more-button:hover:not(:disabled) {
+            background-color: var(--hover-overlay, rgba(255, 255, 255, 0.15));
+        }
+
+        .load-more-button:disabled {
+            opacity: var(--disabled-opacity, 0.5);
+            cursor: not-allowed;
+        }
+
+    .button-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid transparent;
+        border-top: 2px solid currentColor;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    /* Nav Action Button */
+    .nav-action-button {
+        background: none;
+        border: none;
+        color: var(--white, #ffffff);
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 50%;
+        transition: background-color 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+    }
+
+        .nav-action-button:hover {
+            background-color: var(--hover-overlay, rgba(255, 255, 255, 0.1));
+        }
+
+    /* Animations */
+    @@keyframes spin {
+        0%
+
+    {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 480px) {
+        .notifications-container
+
+    {
+        margin: 0;
+    }
+
+    .notifications-list {
+        margin: 8px;
+        border-radius: 8px;
+    }
+
+    .loading-container,
+    .error-container,
+    .empty-state {
+        padding: 40px 20px;
+    }
+
+    }
+
+    /* Dark theme support */
+    @@media (prefers-color-scheme: dark) {
+        .notifications-container
+
+    {
+        background-color: var(--background-color, #0e0e0e);
+    }
+
+    }
+
+    /* High contrast mode support */
+    @@media (prefers-contrast: high) {
+        .notifications-list
+
+    {
+        border-width: 2px;
+    }
+
+    .connection-status {
+        border-left-width: 4px;
+    }
+
+    }
+</style>

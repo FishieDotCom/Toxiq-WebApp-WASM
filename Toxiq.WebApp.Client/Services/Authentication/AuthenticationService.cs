@@ -11,6 +11,8 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         ValueTask<AuthenticationResult> TryAutoLoginAsync();
         ValueTask LogoutAsync();
         ValueTask<UserProfile> GetCurrentUserAsync();
+        Task<string?> GetTokenAsync();
+
         event EventHandler<AuthenticationStateChangedEventArgs> AuthenticationStateChanged;
     }
 
@@ -275,6 +277,12 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             });
 
             _logger.LogInformation("Authentication succeeded for user {UserName}", _currentUser?.UserName);
+        }
+
+        public async Task<string?> GetTokenAsync()
+        {
+            var token = await _tokenStorage.GetTokenAsync();
+            return token;
         }
     }
 }

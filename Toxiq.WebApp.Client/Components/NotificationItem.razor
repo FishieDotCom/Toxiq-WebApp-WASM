@@ -1,0 +1,375 @@
+﻿@* Toxiq.WebApp.Client/Components/Notifications/NotificationItem.razor *@
+@using Toxiq.Mobile.Dto
+@using Microsoft.FluentUI.AspNetCore.Components
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+@inject NavigationManager Navigation
+
+<!-- Individual Notification Item - Mirrors mobile app notification styling -->
+<div class="notification-item @GetNotificationClass()" @onclick="HandleNotificationClick">
+    <!-- Notification Icon -->
+    <div class="notification-icon">
+        @GetNotificationIcon()
+    </div>
+
+    <!-- Notification Content -->
+    <div class="notification-content">
+        <!-- Notification Text -->
+        <div class="notification-text">
+            @if (!string.IsNullOrEmpty(Notification.Text))
+            {
+                <span class="notification-main-text">@Notification.Text</span>
+            }
+
+            @if (!string.IsNullOrEmpty(Notification.Caption))
+            {
+                <span class="notification-caption">@Notification.Caption</span>
+            }
+        </div>
+
+        <!-- Notification Timestamp -->
+        <div class="notification-timestamp">
+            @GetRelativeTime(Notification.Date)
+        </div>
+    </div>
+
+    <!-- Unread Indicator -->
+    @if (IsUnread)
+    {
+        <div class="notification-unread-indicator"></div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// The notification data to display
+    /// </summary>
+    [Parameter, EditorRequired] public NotificationDto Notification { get; set; } = default!;
+
+    /// <summary>
+    /// Whether this notification is unread
+    /// </summary>
+    [Parameter] public bool IsUnread { get; set; } = false;
+
+    /// <summary>
+    /// Callback when notification is clicked
+    /// </summary>
+    [Parameter] public EventCallback<NotificationDto> OnNotificationClick { get; set; }
+
+    /// <summary>
+    /// Handle notification click - navigate to related content
+    /// </summary>
+    private async Task HandleNotificationClick()
+    {
+        // Invoke parent callback first
+        if (OnNotificationClick.HasDelegate)
+        {
+            await OnNotificationClick.InvokeAsync(Notification);
+        }
+
+        // Navigate based on notification type and URLs
+        try
+        {
+            var navigationUrl = GetNavigationUrl();
+            if (!string.IsNullOrEmpty(navigationUrl))
+            {
+                Navigation.NavigateTo(navigationUrl);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error navigating from notification: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Get navigation URL based on notification type and data
+    /// </summary>
+    private string GetNavigationUrl()
+    {
+        // Prioritize AppUrl if available (for deep linking)
+        if (!string.IsNullOrEmpty(Notification.AppUrl))
+        {
+            return Notification.AppUrl;
+        }
+
+        // Use generic Url if available
+        if (!string.IsNullOrEmpty(Notification.Url))
+        {
+            return Notification.Url;
+        }
+
+        // Default navigation based on notification type
+        return Notification.Type switch
+        {
+            NotificationType.Like => "/feed", // Navigate to feed
+            NotificationType.Comment => "/feed", // Navigate to feed (specific post would need post ID)
+            NotificationType.Mention => "/feed", // Navigate to feed
+            NotificationType.Reply => "/feed", // Navigate to feed
+            NotificationType.Message => "/messages", // Navigate to messages/chat
+            NotificationType.System => "/", // Navigate to home
+            _ => "/"
+        };
+    }
+
+    /// <summary>
+    /// Get CSS class for notification styling based on type and read status
+    /// </summary>
+    private string GetNotificationClass()
+    {
+        var classes = new List<string>();
+
+        if (IsUnread)
+        {
+            classes.Add("notification-unread");
+        }
+
+        classes.Add($"notification-type-{Notification.Type.ToString().ToLower()}");
+
+        return string.Join(" ", classes);
+    }
+
+    /// <summary>
+    /// Get icon for notification type - mirrors mobile app icon choices
+    /// </summary>
+    private RenderFragment GetNotificationIcon()
+    {
+        return Notification.Type switch
+        {
+            NotificationType.Like => @<FluentIcon Value="@(new Icons.Regular.Size24.Heart().WithColor("#ff6b6b"))" />,
+            NotificationType.Comment => @<FluentIcon Value="@(new Icons.Regular.Size24.Comment().WithColor("#4ecdc4"))" />,
+            NotificationType.Mention => @<FluentIcon Value="@(new Icons.Regular.Size24.Mention().WithColor("#45b7d1"))" />,
+            NotificationType.Reply => @<FluentIcon Value="@(new Icons.Regular.Size24.ArrowReply().WithColor("#96ceb4"))" />,
+            NotificationType.Message => @<FluentIcon Value="@(new Icons.Regular.Size24.Mail().WithColor("#feca57"))" />,
+            NotificationType.System => @<FluentIcon Value="@(new Icons.Regular.Size24.Info().WithColor("#a55eea"))" />,
+            _ => @<FluentIcon Value="@(new Icons.Regular.Size24.Circle().WithColor("#95a5a6"))" />
+        };
+    }
+
+    /// <summary>
+    /// Get relative time string for notification timestamp
+    /// </summary>
+    private string GetRelativeTime(DateTime? date)
+    {
+        if (!date.HasValue)
+        {
+            return "Unknown time";
+        }
+
+        var timeSpan = DateTime.UtcNow - date.Value;
+
+        if (timeSpan.TotalMinutes < 1)
+        {
+            return "Just now";
+        }
+        else if (timeSpan.TotalMinutes < 60)
+        {
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        }
+        else if (timeSpan.TotalHours < 24)
+        {
+            return $"{(int)timeSpan.TotalHours}h ago";
+        }
+        else if (timeSpan.TotalDays < 7)
+        {
+            return $"{(int)timeSpan.TotalDays}d ago";
+        }
+        else
+        {
+            return date.Value.ToString("MMM dd");
+        }
+    }
+}
+
+<style>
+    /* Notification Item Styles - Matching Mobile App Design */
+    .notification-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 16px;
+        background-color: var(--card-background, rgba(255, 255, 255, 0.05));
+        border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        position: relative;
+        gap: 12px;
+    }
+
+        .notification-item:hover {
+            background-color: var(--hover-overlay, rgba(255, 255, 255, 0.1));
+        }
+
+        .notification-item:active {
+            background-color: var(--active-overlay, rgba(255, 255, 255, 0.2));
+        }
+
+        /* Unread notification styling */
+        .notification-item.notification-unread {
+            background-color: rgba(255, 255, 255, 0.08);
+            border-left: 3px solid var(--accent-color, #D600AA);
+        }
+
+    /* Notification Icon */
+    .notification-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.1);
+        flex-shrink: 0;
+    }
+
+    /* Notification Content */
+    .notification-content {
+        flex: 1;
+        min-width: 0; /* Allow text truncation */
+    }
+
+    /* Notification Text */
+    .notification-text {
+        margin-bottom: 4px;
+    }
+
+    .notification-main-text {
+        color: var(--text-color, #ffffff);
+        font-size: var(--font-size-base, 16px);
+        font-weight: 400;
+        line-height: 1.4;
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .notification-caption {
+        color: var(--text-secondary, #a0a0a0);
+        font-size: var(--font-size-sm, 14px);
+        line-height: 1.3;
+        display: block;
+    }
+
+    /* Notification Timestamp */
+    .notification-timestamp {
+        color: var(--text-secondary, #a0a0a0);
+        font-size: var(--font-size-xs, 12px);
+        font-weight: 400;
+    }
+
+    /* Unread Indicator Dot */
+    .notification-unread-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: var(--accent-color, #D600AA);
+        flex-shrink: 0;
+        margin-top: 4px;
+    }
+
+    /* Type-specific styling */
+    .notification-type-like .notification-icon {
+        background-color: rgba(255, 107, 107, 0.2);
+    }
+
+    .notification-type-comment .notification-icon {
+        background-color: rgba(78, 205, 196, 0.2);
+    }
+
+    .notification-type-mention .notification-icon {
+        background-color: rgba(69, 183, 209, 0.2);
+    }
+
+    .notification-type-reply .notification-icon {
+        background-color: rgba(150, 206, 180, 0.2);
+    }
+
+    .notification-type-message .notification-icon {
+        background-color: rgba(254, 202, 87, 0.2);
+    }
+
+    .notification-type-system .notification-icon {
+        background-color: rgba(165, 94, 234, 0.2);
+    }
+
+    /* Responsive Design */
+    @@media (max-width: 480px) {
+        .notification-item
+
+    {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .notification-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .notification-main-text {
+        font-size: var(--font-size-sm, 14px);
+    }
+
+    .notification-caption {
+        font-size: var(--font-size-xs, 12px);
+    }
+
+    }
+
+    /* Dark theme support */
+    @@media (prefers-color-scheme: dark) {
+        .notification-item
+
+    {
+        background-color: var(--card-background, rgba(255, 255, 255, 0.05));
+        border-bottom-color: var(--border-color, rgba(255, 255, 255, 0.1));
+    }
+
+    .notification-item.notification-unread {
+        background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    }
+
+    /* High contrast mode support */
+    @@media (prefers-contrast: high) {
+        .notification-item
+
+    {
+        border-bottom-width: 2px;
+    }
+
+    .notification-item.notification-unread {
+        border-left-width: 4px;
+    }
+
+    .notification-unread-indicator {
+        width: 10px;
+        height: 10px;
+    }
+
+    }
+
+    /* Focus styles for accessibility */
+    .notification-item:focus {
+        outline: 2px solid var(--accent-color, #D600AA);
+        outline-offset: 2px;
+    }
+
+    /* Animation for new notifications */
+    @@keyframes slideInNotification {
+        from
+
+    {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    }
+
+    .notification-item.notification-new {
+        animation: slideInNotification 0.3s ease-out;
+    }
+</style>
