@@ -1,0 +1,134 @@
+﻿@* PrimaryButton.razor - Reusable primary button matching mobile app styling *@
+
+<button class="primary-button @(IsLoading ? "loading" : "")"
+        disabled="@(IsLoading || Disabled)"
+        @onclick="@HandleClick">
+
+    @if (IsLoading)
+    {
+        <div class="button-content loading">
+            <LoadingSpinner Size="small" />
+            <span class="loading-text">@LoadingText</span>
+        </div>
+    }
+    else
+    {
+        <div class="button-content">
+            <span class="button-text">@ButtonText</span>
+        </div>
+    }
+</button>
+
+@code {
+    [Parameter] public string ButtonText { get; set; } = "Submit";
+    [Parameter] public string LoadingText { get; set; } = "Loading...";
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private async Task HandleClick()
+    {
+        if (!IsLoading && !Disabled)
+        {
+            await OnClick.InvokeAsync();
+        }
+    }
+}
+
+<style>
+    .primary-button {
+        background-color: var(--black);
+        color: var(--button-primary-text);
+        border: none;   
+        border-radius: 15px;
+        
+        padding: 12px 24px;
+        font-family: var(--font-family);
+        font-weight: 600;
+        font-size: var(--font-size-base);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-width: 140px;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .primary-button:hover:not(:disabled) {
+            background-color: var(--gray-900);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .primary-button:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .primary-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .primary-button.loading {
+            cursor: not-allowed;
+        }
+
+    .button-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-sm);
+        position: relative;
+    }
+
+        .button-content.loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+    .button-text {
+        color: var(--button-primary-text);
+        font-weight: 600;
+    }
+
+    .loading-text {
+        color: var(--button-primary-text);
+        font-weight: 600;
+    }
+
+    @@keyframes pulse {
+        0%, 100%
+
+    {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+
+    }
+
+    /* Mobile responsive */
+    @@media (max-width: 768px) {
+        .primary-button
+
+    {
+        padding: 14px 28px;
+        font-size: var(--font-size-lg);
+        min-width: 160px;
+    }
+
+    }
+
+    @@media (max-width: 480px) {
+        .primary-button
+
+    {
+        width: 100%;
+        padding: 16px;
+    }
+
+    }
+</style>

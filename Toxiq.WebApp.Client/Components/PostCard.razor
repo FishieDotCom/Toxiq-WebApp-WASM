@@ -87,11 +87,11 @@
         @if(Post.ReplyRefId != null){
             @if (Post.ReplyType != ReplyType.Non)
             {
-                <div class="quoted-post" @onclick="HandleQuotedPostClick" @onclick:stopPropagation="true">
+               @*  <div class="quoted-post" @onclick="HandleQuotedPostClick" @onclick:stopPropagation="true">
                     <ReplyCard Post="@Post"
                     IsFullPost="false"
                     ShowActions="false"/>
-                </div>
+                </div> *@
             }
         }
 

@@ -18,16 +18,6 @@ public interface IAuthService
     ValueTask<LoginResponse> Login(LoginDto loginDto);
 }
 
-public interface IUserService
-{
-    ValueTask<UserProfile> GetMe(bool force = false);
-    ValueTask<UserProfile> GetUser(string username);
-    ValueTask<bool> CheckUsername(string username);
-    ValueTask<bool> ChangeUsername(string username);
-    ValueTask EditProfile(UserProfile profile);
-    ValueTask<List<BasePost>> GetUserPosts(string username, bool includeReplies = false);
-}
-
 public interface IPostService
 {
     ValueTask<SearchResultDto<BasePost>> GetFeed(GetPostDto filter);

@@ -42,7 +42,7 @@ namespace Toxiq.WebApp.Client.Services.Api
 
             // Initialize service implementations
             AuthService = new AuthServiceImpl(this);
-            UserService = new UserServiceImpl(this);
+            UserService = new UserService(this);
             PostService = new PostServiceImpl(this);
             CommentService = new CommentService(this);
             NotesService = new NotesServiceImpl(this);
@@ -151,52 +151,6 @@ namespace Toxiq.WebApp.Client.Services.Api
         public ValueTask<LoginResponse> Login(LoginDto loginDto) =>
             _api.PostAsync<LoginResponse>("Auth/DebugLogin", loginDto);
 
-    }
-
-    internal class UserServiceImpl : IUserService
-    {
-        private readonly OptimizedApiService _api;
-
-        public UserServiceImpl(OptimizedApiService api) => _api = api;
-
-        public ValueTask<UserProfile> GetMe(bool force = false) =>
-            force ? _api.GetAsync<UserProfile>("User/GetMe")
-                  : _api.GetCachedAsync<UserProfile>("User/GetMe", TimeSpan.FromMinutes(30));
-
-        public ValueTask<UserProfile> GetUser(string username) =>
-            _api.GetCachedAsync<UserProfile>($"User/GetUser/{username}", TimeSpan.FromMinutes(15));
-
-        public async ValueTask<bool> CheckUsername(string username)
-        {
-            try
-            {
-                await _api.GetAsync<object>($"User/CheckUsername?username={username}");
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public async ValueTask<bool> ChangeUsername(string username)
-        {
-            try
-            {
-                await _api.GetAsync<object>($"User/ChangeUsername?username={username}");
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        public async ValueTask EditProfile(UserProfile profile) =>
-          await _api.PostAsync<object>("User/EditUserProfile", profile);
-
-        public ValueTask<List<BasePost>> GetUserPosts(string username, bool includeReplies = false) =>
-            _api.GetCachedAsync<List<BasePost>>($"User/GetUserPosts/{username}", TimeSpan.FromMinutes(5));
     }
 
     internal class PostServiceImpl : IPostService

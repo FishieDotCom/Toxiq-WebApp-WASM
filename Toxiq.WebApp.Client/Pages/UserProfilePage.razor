@@ -14,11 +14,14 @@
 @inject IJSRuntime JSRuntime
 
 <PageTitle>@GetPageTitle()</PageTitle>
-<TopNavBar ShowBackButton="true" PageTitle="@PageTitle">
+<TopNavBar ShowBackButton="true" PageTitle="@PageTitle">   
     <ExtraOptions>
-        <button class="nav-back-button" @onclick="NavigateToSettings">
-            <FluentIcon Value="@(new Icons.Regular.Size24.Settings().WithColor("#ffffff"))" />
-        </button>
+        @if (IsMe)
+        {
+            <button class="nav-back-button" @onclick="NavigateToSettings">
+                <FluentIcon Value="@(new Icons.Regular.Size24.Settings().WithColor("#ffffff"))" />
+            </button>
+        }     
     </ExtraOptions>
 </TopNavBar>
 <div class="profile-container centered-container">
@@ -123,7 +126,6 @@
         <div class="error-container">
             <h3>Profile not found</h3>
             <p>The user you're looking for doesn't exist or has been removed.</p>
-            <button class="action-button primary" @onclick="NavigateToHome">Go Home</button>
         </div>
     }
 </div>
@@ -729,6 +731,7 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading profile: {ex.Message}");
+            PageTitle = "404";
             Profile = null;
         }
         finally

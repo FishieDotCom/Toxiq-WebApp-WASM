@@ -1,0 +1,128 @@
+﻿@* UsernameInput.razor - Reusable component matching mobile app's TextEdit *@
+
+<div class="username-input-container">
+    <input type="text"
+           class="username-input @(HasError ? "error" : "")"
+           placeholder="Username"
+           maxlength="15"
+           value="@Value"
+           disabled="@IsLoading"
+           @oninput="@HandleInput"
+           @ref="inputElement" />
+
+    @if (HasError)
+    {
+        <div class="error-text">@ErrorText</div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public EventCallback<string> OnInput { get; set; }
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public bool HasError { get; set; }
+    [Parameter] public string ErrorText { get; set; } = "";
+
+    private ElementReference inputElement;
+
+    private async Task HandleInput(ChangeEventArgs e)
+    {
+        var newValue = e.Value?.ToString() ?? "";
+        Value = newValue;
+
+        await ValueChanged.InvokeAsync(newValue);
+        await OnInput.InvokeAsync(newValue);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Auto-focus the input (matching mobile app behavior)
+            await inputElement.FocusAsync();
+        }
+    }
+}
+
+<style>
+    .username-input-container {
+        width: 100%;
+        position: relative;
+    }
+
+    .username-input {
+        width: 100%;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text-color);
+        font-family: var(--font-family);
+        font-size: 32px;
+        text-align: center;
+        padding: var(--spacing-lg);
+        box-sizing: border-box;
+        transition: all 0.3s ease;
+    }
+
+        .username-input::placeholder {
+            color: var(--gray-400);
+            opacity: 1;
+        }
+
+        .username-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .username-input:focus {
+            color: var(--white);
+        }
+
+        .username-input.error {
+            color: var(--error-color);
+        }
+
+    .error-text {
+        color: var(--error-color);
+        font-size: var(--font-size-sm);
+        text-align: center;
+        margin-top: var(--spacing-sm);
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @@keyframes fadeIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+
+    /* Mobile responsive */
+    @@media (max-width: 768px) {
+        .username-input
+
+    {
+        font-size: 28px;
+        padding: var(--spacing-base);
+    }
+
+    }
+
+    @@media (max-width: 480px) {
+        .username-input
+
+    {
+        font-size: 24px;
+    }
+
+    }
+</style>

@@ -41,7 +41,7 @@
             <div class="instruction-step">
                 <span class="step-number">2</span>
                 <div class="step-content">
-                    <p class="step-title">Send /start to get your login token</p>
+                    <p class="step-title">Send /otp to get your login token</p>
                     <p class="step-description">The bot will respond with a 10-character token</p>
                 </div>
             </div>
@@ -66,11 +66,14 @@
         }
 
         <div class="login-footer">
-            <p class="footer-text">By signing in, you agree to our Terms of Service and Privacy Policy.</p>
+            <p class="footer-text">
+                By signing in, you agree to our <a href="https://github.com/FishieDotCom/Toxiq-Legal/blob/main/Terms%20of%20service.md" class="footer-link">Terms of Service</a> and                 <a href="https://github.com/FishieDotCom/Toxiq-Legal/blob/main/Privacy%20Policy.md" class="footer-link">Privacy Policy</a>.
+            </p>
             <button class="btn-link" @onclick="GoHome">
                 Continue as guest
             </button>
         </div>
+
     </div>
 </div>
 

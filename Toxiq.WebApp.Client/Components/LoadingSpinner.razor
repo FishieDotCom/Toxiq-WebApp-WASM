@@ -1,0 +1,89 @@
+﻿@* LoadingSpinner.razor - Reusable loading spinner matching mobile app patterns *@
+
+<div class="loading-spinner @Size @Color">
+    <div class="spinner-circle"></div>
+</div>
+
+@code {
+    [Parameter] public string Size { get; set; } = "medium"; // small, medium, large
+    [Parameter] public string Color { get; set; } = "white"; // white, primary, accent
+}
+
+<style>
+    .loading-spinner {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .spinner-circle {
+        border-radius: 50%;
+        border-style: solid;
+        animation: spin 1s linear infinite;
+    }
+
+    /* Size variants */
+    .loading-spinner.small .spinner-circle {
+        width: 16px;
+        height: 16px;
+        border-width: 2px;
+    }
+
+    .loading-spinner.medium .spinner-circle {
+        width: 24px;
+        height: 24px;
+        border-width: 3px;
+    }
+
+    .loading-spinner.large .spinner-circle {
+        width: 40px;
+        height: 40px;
+        border-width: 4px;
+    }
+
+    /* Color variants */
+    .loading-spinner.white .spinner-circle {
+        border-color: var(--white) transparent var(--white) transparent;
+    }
+
+    .loading-spinner.primary .spinner-circle {
+        border-color: var(--button-primary-text) transparent var(--button-primary-text) transparent;
+    }
+
+    .loading-spinner.accent .spinner-circle {
+        border-color: var(--accent-color) transparent var(--accent-color) transparent;
+    }
+
+    @@keyframes spin {
+        0%
+
+    {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    /* Centered loading spinner for full page loading */
+    .loading-spinner.center {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+    }
+
+    /* Mobile responsive */
+    @@media (max-width: 768px) {
+        .loading-spinner.medium .spinner-circle
+
+    {
+        width: 20px;
+        height: 20px;
+    }
+
+    }
+</style>
