@@ -26,6 +26,8 @@ namespace Toxiq.WebApp.Client
             // Configure logging first
             builder.Logging.SetMinimumLevel(LogLevel.Information);
             builder.Logging.AddFilter("Toxiq.WebApp.Client.Services.Notifications", LogLevel.Debug);
+            builder.Logging.AddFilter("Microsoft.AspNetCore.SignalR", LogLevel.Debug);
+
 
             // Get API configuration
             var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://toxiq.xyz/api/";
@@ -62,9 +64,11 @@ namespace Toxiq.WebApp.Client
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<ITelegramAuthJsInvoker, TelegramAuthJsInvoker>();
 
+            builder.Services.AddSingleton<ISignalRService, SignalRService>();
+
+
             // Notification services - FIXED: Register in correct order
             builder.Services.AddScoped<INotificationService, NotificationService>();
-            builder.Services.AddScoped<ISignalRService, SignalRService>();
 
             // Additional services
             builder.Services.AddScoped<ILazyLoader, LazyLoader>();
@@ -77,9 +81,6 @@ namespace Toxiq.WebApp.Client
             builder.Services.AddFluentUIComponents();
 
             var host = builder.Build();
-
-            // FIXED: Don't initialize SignalR during startup - let it initialize when user logs in
-            // This was causing issues because authentication state wasn't ready
 
             await host.RunAsync();
         }

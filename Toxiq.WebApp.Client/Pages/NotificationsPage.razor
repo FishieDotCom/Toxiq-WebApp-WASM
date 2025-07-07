@@ -44,7 +44,7 @@
     @if (isLoading)
     {
         <div class="loading-container">
-            <div class="loading-spinner"></div>
+            <LoadingSpinner/>
             <p class="loading-text">Loading notifications...</p>
         </div>
     }
@@ -86,8 +86,8 @@
             <button class="load-more-button" @onclick="LoadMoreNotifications" disabled="@isLoadingMore">
                 @if (isLoadingMore)
                 {
-                    <div class="button-spinner"></div>
-                    <span>Loading...</span>
+                        <LoadingSpinner />
+                        <span>Loading...</span>
                 }
                 else
                 {
@@ -111,31 +111,44 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Check authentication first
+        if (!AuthService.IsAuthenticated().GetValueOrDefault(false))
+        {
+            //Navigation.NavigateTo("/login");
+            return;
+        }
+
+        // Subscribe to events BEFORE starting connection
+        NotificationService.NewNotificationReceived += OnNewNotificationReceived;
+        NotificationService.UnreadCountChanged += OnUnreadCountChanged;
+        SignalRService.NotificationReceived += OnSignalRNotificationReceived;
+        SignalRService.ConnectionStateChanged += OnSignalRConnectionStateChanged;
+
+        // Start SignalR connection if not already connected
+        await EnsureSignalRConnection();
+
+        // Load initial notifications
+        await LoadNotifications();
+    }
+
+
+    private async Task EnsureSignalRConnection()
+    {
         try
         {
-            // Subscribe to notification service events
-            NotificationService.NewNotificationReceived += OnNewNotificationReceived;
-            NotificationService.UnreadCountChanged += OnUnreadCountChanged;
-
-            // Subscribe to SignalR events
-            SignalRService.NotificationReceived += OnSignalRNotificationReceived;
-            SignalRService.ConnectionStateChanged += OnSignalRConnectionStateChanged;
-
-            // Load initial data
-            await LoadNotifications();
-
-            // Start SignalR connection
-            await StartSignalRConnection();
+            if (!SignalRService.IsConnected)
+            {
+                var token = await AuthService.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    await SignalRService.StartAsync(token);
+                }
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error initializing notifications page: {ex.Message}");
-            hasError = true;
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
+            Console.WriteLine($"Error ensuring SignalR connection: {ex.Message}");
+            // Continue without real-time updates
         }
     }
 
@@ -354,15 +367,6 @@
         text-align: center;
     }
 
-    .loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid var(--transparent-white, rgba(255, 255, 255, 0.2));
-        border-top: 3px solid var(--accent-color, #D600AA);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-bottom: 16px;
-    }
 
     .loading-text {
         color: var(--text-secondary, #a0a0a0);

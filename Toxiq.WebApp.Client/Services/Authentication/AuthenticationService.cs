@@ -71,6 +71,24 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             return _isAuthenticated;
         }
 
+        private async Task StartSignalRConnectionAsync()
+        {
+            try
+            {
+                var token = await _tokenStorage.GetTokenAsync();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    await _signalRService.StartAsync(token);
+                    _logger.LogInformation("SignalR connection started after authentication");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to start SignalR connection after authentication");
+                // Don't fail authentication if SignalR fails
+            }
+        }
+
         private async ValueTask InitializeAsync()
         {
             if (_hasInitialized) return;
@@ -296,6 +314,9 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                 await _cache.SetAsync("current_user", _currentUser, TimeSpan.FromHours(1));
             }
 
+            // FIXED: Start SignalR connection after successful authentication
+            await StartSignalRConnectionAsync();
+
             // Notify state change
             AuthenticationStateChanged?.Invoke(this, new AuthenticationStateChangedEventArgs
             {
@@ -305,7 +326,6 @@ namespace Toxiq.WebApp.Client.Services.Authentication
 
             _logger.LogInformation("Authentication succeeded for user {UserName}", _currentUser?.UserName);
         }
-
         public async Task<string?> GetTokenAsync()
         {
             var token = await _tokenStorage.GetTokenAsync();

@@ -2,6 +2,7 @@
 using Microsoft.JSInterop;
 using Toxiq.Mobile.Dto;
 using Toxiq.WebApp.Client.Services.Caching;
+using Toxiq.WebApp.Client.Services.Notifications;
 
 namespace Toxiq.WebApp.Client.Services.Api
 {
@@ -59,18 +60,34 @@ namespace Toxiq.WebApp.Client.Services.Api
         private readonly string _cacheKey = "toxiq_notifications";
         private readonly string _unreadCountKey = "toxiq_unread_count";
         private readonly string _lastReadKey = "toxiq_last_read_time";
+        private readonly ISignalRService _signalRService; // Singleton SignalR service
 
         public event EventHandler<NotificationDto>? NewNotificationReceived;
         public event EventHandler<int>? UnreadCountChanged;
 
         // FIXED: Constructor now accepts the concrete OptimizedApiService that it actually needs
-        public NotificationService(OptimizedApiService apiService, IIndexedDbService indexedDb, IJSRuntime jsRuntime)
+        public NotificationService(OptimizedApiService apiService, IIndexedDbService indexedDb, IJSRuntime jsRuntime, ISignalRService signalRService)
         {
             _apiService = apiService;
             _indexedDb = indexedDb;
             _jsRuntime = jsRuntime;
+            _signalRService = signalRService;
+            _signalRService.NotificationReceived += OnSignalRNotificationReceived;
+
         }
 
+        private async void OnSignalRNotificationReceived(object? sender, NotificationDto notification)
+        {
+            try
+            {
+                // Add to our cache and update counts
+                await AddNewNotification(notification);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error handling SignalR notification: {ex.Message}");
+            }
+        }
         /// <summary>
         /// Get notifications from API - exact same as mobile app
         /// Reference: Mobile UserService.GetNotification()

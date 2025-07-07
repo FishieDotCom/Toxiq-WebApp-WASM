@@ -113,7 +113,7 @@ namespace Toxiq.WebApp.Client.Services.Api
             try
             {
                 _logger?.LogDebug("Editing user profile");
-                await _api.PostAsync<object>("User/EditUserProfile", profile);
+                await _api.PostRawAsync("User/EditUserProfile", profile);
 
                 // Invalidate cache after profile update
                 InvalidateCache();
