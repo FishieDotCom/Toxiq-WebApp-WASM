@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.SignalR.Client;
 using System.Text.Json;
 using Toxiq.Mobile.Dto;
 using Toxiq.WebApp.Client.Services.Api;
-using Toxiq.WebApp.Client.Services.Authentication;
 
 namespace Toxiq.WebApp.Client.Services.Notifications
 {
@@ -15,7 +14,7 @@ namespace Toxiq.WebApp.Client.Services.Notifications
         /// <summary>
         /// Start SignalR connection
         /// </summary>
-        Task StartAsync();
+        Task StartAsync(string token);
 
         /// <summary>
         /// Stop SignalR connection
@@ -44,7 +43,6 @@ namespace Toxiq.WebApp.Client.Services.Notifications
     /// </summary>
     public class SignalRService : ISignalRService, IAsyncDisposable
     {
-        private readonly IAuthenticationService _authService;
         private readonly INotificationService _notificationService;
         private readonly IConfiguration _configuration;
         private HubConnection? _hubConnection;
@@ -56,12 +54,11 @@ namespace Toxiq.WebApp.Client.Services.Notifications
         public bool IsConnected => _hubConnection?.State == HubConnectionState.Connected;
 
         public SignalRService(
-            IAuthenticationService authService,
             INotificationService notificationService,
             IConfiguration configuration,
             ILogger<SignalRService> logger)
         {
-            _authService = authService;
+
             _notificationService = notificationService;
             _configuration = configuration;
             _logger = logger;
@@ -70,7 +67,7 @@ namespace Toxiq.WebApp.Client.Services.Notifications
         /// <summary>
         /// Start SignalR connection to notification hub
         /// </summary>
-        public async Task StartAsync()
+        public async Task StartAsync(string token)
         {
             try
             {
@@ -80,42 +77,66 @@ namespace Toxiq.WebApp.Client.Services.Notifications
                     return;
                 }
 
-                // Get API base URL from configuration
-                var apiBaseUrl = _configuration["ApiBaseUrl"] ?? "https://toxiq.xyz";
-                var hubUrl = $"{apiBaseUrl.TrimEnd('/')}/hubs/notification";
-                var token = await _authService.GetTokenAsync();
+                // FIXED: Build correct hub URL - remove /api/ for hub endpoints
+                var apiBaseUrl = _configuration["ApiBaseUrl"] ?? "https://toxiq.xyz/api/";
+
+                // Remove /api/ suffix and build hub URL correctly
+                var baseUrl = apiBaseUrl.Replace("/api/", "").TrimEnd('/');
+                var hubUrl = $"{baseUrl}/hubs/notification";
+
+                _logger.LogInformation($"Attempting to connect to SignalR hub: {hubUrl}");
+
+                if (string.IsNullOrEmpty(token))
+                {
+                    _logger.LogWarning("No authentication token available for SignalR connection");
+                    return;
+                }
+
+                _logger.LogInformation("Token retrieved successfully for SignalR connection");
 
                 // Create hub connection
                 _hubConnection = new HubConnectionBuilder()
                     .WithUrl(hubUrl, options =>
                     {
-                        // Add authentication token if available
-                        if (!string.IsNullOrEmpty(token))
-                        {
-                            options.AccessTokenProvider = () => Task.FromResult(token);
-                        }
+                        // Add authentication token
+                        options.AccessTokenProvider = () => Task.FromResult(token);
 
-                        // Configure transport
+                        // FIXED: Configure transport and additional options
                         options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets |
                                            Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+
+                        // Add headers that match your test client
+                        options.Headers.Add("Authorization", $"Bearer {token}");
+                        options.UseStatefulReconnect = true;
+                        // Skip negotiation for better compatibility
+                        options.SkipNegotiation = false;
                     })
                     .WithAutomaticReconnect(new RetryPolicy())
+                    .ConfigureLogging(logging =>
+                    {
+                        //logging.AddConsole();
+                        logging.SetMinimumLevel(LogLevel.Debug);
+                    })
                     .Build();
 
                 // Setup event handlers
                 SetupEventHandlers();
 
                 // Start connection
+                _logger.LogInformation("Starting SignalR connection...");
                 await _hubConnection.StartAsync();
 
-                _logger.LogInformation($"SignalR connected to: {hubUrl}");
+                _logger.LogInformation($"SignalR connected successfully to: {hubUrl}");
+                _logger.LogInformation($"Connection ID: {_hubConnection.ConnectionId}");
                 ConnectionStateChanged?.Invoke(this, true);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error starting SignalR connection");
                 ConnectionStateChanged?.Invoke(this, false);
-                throw;
+
+                // Don't rethrow - let the application continue without real-time notifications
+                // throw;
             }
         }
 
@@ -146,15 +167,21 @@ namespace Toxiq.WebApp.Client.Services.Notifications
         {
             if (_hubConnection == null) return;
 
-            // Handle incoming notifications
+            // FIXED: Handle incoming notifications - match the server method signature
             _hubConnection.On<string>("ReceiveNotification", async (notificationJson) =>
             {
                 try
                 {
-                    var notification = JsonSerializer.Deserialize<NotificationDto>(notificationJson);
+                    _logger.LogInformation($"Raw notification received: {notificationJson}");
+
+                    var notification = JsonSerializer.Deserialize<NotificationDto>(notificationJson, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
                     if (notification != null)
                     {
-                        _logger.LogInformation($"Received notification: {notification.Type} - {notification.Text}");
+                        _logger.LogInformation($"Parsed notification: {notification.Type} - {notification.Text}");
 
                         // Add to notification service (which handles caching and unread count)
                         await _notificationService.AddNewNotification(notification);
@@ -162,11 +189,21 @@ namespace Toxiq.WebApp.Client.Services.Notifications
                         // Notify components
                         NotificationReceived?.Invoke(this, notification);
                     }
+                    else
+                    {
+                        _logger.LogWarning("Failed to deserialize notification JSON");
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error processing received notification");
+                    _logger.LogError(ex, $"Error processing received notification: {notificationJson}");
                 }
+            });
+
+            // FIXED: Add connection status handlers that match your test client
+            _hubConnection.On<string>("Connected", (message) =>
+            {
+                _logger.LogInformation($"Hub Connected message: {message}");
             });
 
             // Handle connection events
@@ -175,16 +212,8 @@ namespace Toxiq.WebApp.Client.Services.Notifications
                 _logger.LogWarning($"SignalR connection closed: {error?.Message}");
                 ConnectionStateChanged?.Invoke(this, false);
 
-                // Attempt to reconnect after delay
-                await Task.Delay(5000);
-                try
-                {
-                    await StartAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error reconnecting SignalR");
-                }
+                // FIXED: Don't auto-reconnect immediately - let the retry policy handle it
+                // The WithAutomaticReconnect will handle this automatically
             };
 
             _hubConnection.Reconnecting += (error) =>
@@ -196,7 +225,7 @@ namespace Toxiq.WebApp.Client.Services.Notifications
 
             _hubConnection.Reconnected += (connectionId) =>
             {
-                _logger.LogInformation($"SignalR reconnected: {connectionId}");
+                _logger.LogInformation($"SignalR reconnected with ID: {connectionId}");
                 ConnectionStateChanged?.Invoke(this, true);
                 return Task.CompletedTask;
             };
@@ -221,21 +250,24 @@ namespace Toxiq.WebApp.Client.Services.Notifications
     {
         public TimeSpan? NextRetryDelay(RetryContext retryContext)
         {
-            // Exponential backoff with jitter
-            var delay = TimeSpan.FromSeconds(Math.Pow(2, retryContext.PreviousRetryCount));
-
-            // Cap at 30 seconds
-            if (delay > TimeSpan.FromSeconds(30))
+            // FIXED: More conservative retry policy
+            var delays = new[]
             {
-                delay = TimeSpan.FromSeconds(30);
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(2),
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(10),
+                TimeSpan.FromSeconds(15),
+                TimeSpan.FromSeconds(30)
+            };
+
+            if (retryContext.PreviousRetryCount < delays.Length)
+            {
+                return delays[retryContext.PreviousRetryCount];
             }
 
-            // Add jitter (±25%)
-            var jitter = new Random().NextDouble() * 0.5 + 0.75; // 0.75 to 1.25
-            delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * jitter);
-
-            // Stop retrying after 10 attempts
-            return retryContext.PreviousRetryCount < 10 ? delay : null;
+            // Stop retrying after 6 attempts
+            return null;
         }
     }
 }

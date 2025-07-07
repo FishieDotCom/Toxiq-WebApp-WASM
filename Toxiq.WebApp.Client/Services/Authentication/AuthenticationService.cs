@@ -1,5 +1,6 @@
 ﻿using Toxiq.Mobile.Dto;
 using Toxiq.WebApp.Client.Services.Caching;
+using Toxiq.WebApp.Client.Services.Notifications;
 
 namespace Toxiq.WebApp.Client.Services.Authentication
 {
@@ -25,6 +26,8 @@ namespace Toxiq.WebApp.Client.Services.Authentication
     // Toxiq.WebApp.Client/Services/Authentication/AuthenticationService.cs
     public class AuthenticationService : IAuthenticationService
     {
+        private readonly ISignalRService _signalRService;
+
         private readonly IEnumerable<IAuthenticationProvider> _providers;
         private readonly ITokenStorage _tokenStorage;
         private readonly ICacheService _cache;
@@ -42,13 +45,14 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             ITokenStorage tokenStorage,
             ICacheService cache,
             IApiService apiService,
-            ILogger<AuthenticationService> logger)
+            ILogger<AuthenticationService> logger, ISignalRService signalRService)
         {
             _providers = providers;
             _tokenStorage = tokenStorage;
             _cache = cache;
             _apiService = apiService;
             _logger = logger;
+            _signalRService = signalRService;
         }
 
         public async ValueTask<bool> IsAuthenticatedAsync()
@@ -107,6 +111,17 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                                 User = _currentUser
                             });
 
+                            try
+                            {
+                                await _signalRService.StartAsync(token);
+                                _logger.LogInformation("SignalR connection started after login");
+                            }
+                            catch (Exception signalrEx)
+                            {
+                                _logger.LogWarning(signalrEx, "Failed to start SignalR connection after login");
+                                // Don't fail login if SignalR fails
+                            }
+
                             _hasInitialized = true;
                             return;
                         }
@@ -164,6 +179,8 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                 return new AuthenticationResult(true, UserProfile: user);
             }
 
+
+
             // Try providers that support auto-login
             foreach (var provider in _providers.Where(p => p.IsAvailable))
             {
@@ -219,6 +236,16 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                 {
                     _logger.LogWarning(ex, "Provider {Provider} logout failed", provider.ProviderName);
                 }
+            }
+
+            try
+            {
+                await _signalRService.StopAsync();
+                _logger.LogInformation("SignalR connection stopped before logout");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error stopping SignalR connection during logout");
             }
 
             // Clear local state

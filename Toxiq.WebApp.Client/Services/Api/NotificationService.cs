@@ -174,7 +174,7 @@ namespace Toxiq.WebApp.Client.Services.Api
                 UnreadCountChanged?.Invoke(this, newCount);
 
                 // Show browser notification if supported
-                await ShowBrowserNotification(notification);
+                //await ShowBrowserNotification(notification);
             }
             catch (Exception ex)
             {

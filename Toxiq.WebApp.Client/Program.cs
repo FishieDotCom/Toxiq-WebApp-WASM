@@ -25,6 +25,7 @@ namespace Toxiq.WebApp.Client
 
             // Configure logging first
             builder.Logging.SetMinimumLevel(LogLevel.Information);
+            builder.Logging.AddFilter("Toxiq.WebApp.Client.Services.Notifications", LogLevel.Debug);
 
             // Get API configuration
             var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://toxiq.xyz/api/";
@@ -48,23 +49,21 @@ namespace Toxiq.WebApp.Client
             builder.Services.AddScoped<IPlatformService, PlatformService>();
             builder.Services.AddSingleton<IIndexedDbService, IndexedDbService>();
 
-            // FIXED: HttpClient registration for WebAssembly - use the default HttpClient registration
+            // FIXED: HttpClient registration for WebAssembly
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 
-            // API Service registration - use scoped to match HttpClient lifetime
+            // API Service registration
             builder.Services.AddScoped<OptimizedApiService>();
             builder.Services.AddScoped<IApiService>(provider => provider.GetRequiredService<OptimizedApiService>());
 
-            // Authentication services - make these scoped to work with scoped API service
+            // Authentication services - FIXED: Ensure proper order
             builder.Services.AddScoped<IAuthenticationProvider, TelegramAuthProvider>();
             builder.Services.AddScoped<IAuthenticationProvider, ManualAuthProvider>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<ITelegramAuthJsInvoker, TelegramAuthJsInvoker>();
 
-            // Notification service - make scoped to work with scoped API service
+            // Notification services - FIXED: Register in correct order
             builder.Services.AddScoped<INotificationService, NotificationService>();
-
-            // SignalR service - make scoped to work with other scoped services
             builder.Services.AddScoped<ISignalRService, SignalRService>();
 
             // Additional services
@@ -79,23 +78,8 @@ namespace Toxiq.WebApp.Client
 
             var host = builder.Build();
 
-            // Initialize notification services after app is built
-            try
-            {
-                using var scope = host.Services.CreateScope();
-                var signalRService = scope.ServiceProvider.GetRequiredService<ISignalRService>();
-                var authService = scope.ServiceProvider.GetRequiredService<IAuthenticationService>();
-
-                // Start SignalR if authenticated
-                if (authService.IsAuthenticated().GetValueOrDefault(false))
-                {
-                    await signalRService.StartAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error starting notifications: {ex.Message}");
-            }
+            // FIXED: Don't initialize SignalR during startup - let it initialize when user logs in
+            // This was causing issues because authentication state wasn't ready
 
             await host.RunAsync();
         }

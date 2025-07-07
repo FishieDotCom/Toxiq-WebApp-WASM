@@ -5,10 +5,13 @@
 @using Toxiq.WebApp.Client.Services.Api
 @using Microsoft.FluentUI.AspNetCore.Components
 @using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+@using Toxiq.WebApp.Client.Services.Authentication
 @using Toxiq.WebApp.Client.Services.Notifications
 @inject INotificationService NotificationService
 @inject ISignalRService SignalRService
 @inject IJSRuntime JSRuntime
+@inject IAuthenticationService AuthService
+
 @implements IAsyncDisposable
 
 <PageTitle>Notifications - Toxiq</PageTitle>
@@ -198,7 +201,7 @@
     {
         try
         {
-            await SignalRService.StartAsync();
+            await SignalRService.StartAsync(await AuthService.GetTokenAsync());
         }
         catch (Exception ex)
         {
