@@ -4,42 +4,43 @@
 @using Toxiq.Mobile.Dto
 @using Toxiq.WebApp.Client.Services.Feed
 @inject IFeedService FeedService
+@inject IApiService ApiService
 
 <div class="reply-card @GetReplyTypeClass()">
     <div class="reply-content">
         <!-- Reply Header -->
         <div class="reply-header">
-            <div class="reply-author" @onclick="HandleProfileClick" @onclick:stopPropagation="true">
-                <span class="reply-author-name">@Post.Name</span>
-                <span class="reply-author-username">@@@Post.UserName</span>
+            <div class="reply-author" @onclick:stopPropagation="true">
+                <span class="reply-author-name">@ReplyPost.Name</span>
+                <span class="reply-author-username">@@@ReplyPost.UserName</span>
             </div>
-            @if (Post.Type == PostType.Burn)
+            @if (ReplyPost.Type == PostType.Burn)
             {
                 <div class="reply-burn-indicator">🔥</div>
             }
         </div>
 
         <!-- Reply Text Content -->
-        @if (!string.IsNullOrEmpty(Post.Content))
+        @if (!string.IsNullOrEmpty(ReplyPost.Content))
         {
             <div class="reply-text" style="@GetReplyContentStyle()">
-                <FormattedText Text="@Post.Content" />
+                <FormattedText Text="@ReplyPost.Content" />
             </div>
         }
 
         <!-- Reply Media (Images/Video) -->
-        @if (Post.PostMedia?.Count > 0)
+        @if (ReplyPost.PostMedia?.Count > 0)
         {
             <div class="reply-media">
-                @foreach (var media in Post.PostMedia.Take(1)) // Only show first media item in reply
+                @foreach (var media in ReplyPost.PostMedia.Take(1)) // Only show first media item in reply
                 {
                     @if (IsImageMedia(media))
                     {
                         <img src="@media.MediaPath"
-                             alt="Reply attachment"
-                             class="reply-image"
-                             @onclick="HandleMediaClick"
-                             @onclick:stopPropagation="true" />
+                        alt="Reply attachment"
+                        class="reply-image"
+    
+                        @onclick:stopPropagation="true" />
                     }
                     else if (IsVideoMedia(media))
                     {
@@ -63,58 +64,12 @@
                 </div>
             </div>
         }
-
-        <!-- Reply Stats (if IsFullPost) -->
-        @if (IsFullPost)
-        {
-            <div class="reply-stats">
-                <span class="reply-stat-item">@GetSupportCountDisplay() Likes</span>
-                <span class="reply-stat-item">@(Post.CommentCount ?? 0) Comments</span>
-                @if (Post.ShareCount.HasValue && Post.ShareCount > 0)
-                {
-                    <span class="reply-stat-item">@Post.ShareCount Shares</span>
-                }
-            </div>
-        }
-
-        <!-- Reply Actions (if IsFullPost and ShowActions) -->
-        @if (IsFullPost && ShowActions)
-        {
-            <div class="reply-actions">
-                <!-- Vote Buttons -->
-                <VoteButtons ContentId="@Post.Id"
-                             ContentType="reply"
-                             InitialSupportStatus="@Post.SupportStatus"
-                             InitialSupportCount="@Post.SupportCount"
-                             ShowCount="false"
-                             Variant="compact"
-                             OnVoteChanged="@HandleReplyVoteChanged" />
-
-                <!-- Comment Button -->
-                <button class="reply-action-btn"
-                        @onclick="HandleCommentClick"
-                        @onclick:stopPropagation="true">
-                    <div class="btn-icon">
-                        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size16.Comment().WithColor("#ffffff"))" />
-                    </div>
-                    <span class="btn-text">Reply</span>
-                </button>
-
-                <!-- Share Button -->
-                <button class="reply-action-btn"
-                        @onclick:stopPropagation="true">
-                    <div class="btn-icon">
-                        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size16.Share().WithColor("#ffffff"))" />
-                    </div>
-                    <span class="btn-text">Share</span>
-                </button>
-            </div>
-        }
     </div>
 </div>
 
 @code {
     [Parameter] public BasePost Post { get; set; } = default!;
+    [Parameter] public BasePost ReplyPost { get; set; } = default!;
     [Parameter] public bool IsFullPost { get; set; } = false;
     [Parameter] public bool ShowActions { get; set; } = false;
     [Parameter] public EventCallback<BasePost> OnReplyClick { get; set; }
@@ -122,22 +77,48 @@
 
     protected override void OnInitialized()
     {
-        // Subscribe to feed service events for real-time updates
-        FeedService.PostInteractionChanged += OnPostInteractionChanged;
+        LoadEchoPost();
+    }
+
+    private async Task LoadEchoPost()
+    {
+        try
+        {
+            switch (Post.ReplyType)
+            {
+                case ReplyType.Text:
+                    ReplyPost = await ApiService.PostService.GetPost(Post.ReplyRefId.GetValueOrDefault());
+                    break;
+                case ReplyType.Note:
+                    var note = await ApiService.NotesService.GetNote(Post.ReplyRefId.GetValueOrDefault());
+                    ReplyPost = new();
+                    ReplyPost.Id = note.Id;
+                    ReplyPost.Content = note.Content;
+                    ReplyPost.Name = "💢❔";
+                    ReplyPost.UserName = "Anon";
+                    break;
+                case ReplyType.Prompt:
+                    ReplyPost = await ApiService.PostService.GetPrompt((Guid)Post.ReplyRefId);
+                    break;
+                default:
+                    break;
+
+            }
+
+            StateHasChanged();
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading echo post: {ex.Message}");
+        }
     }
 
     public void Dispose()
     {
-        FeedService.PostInteractionChanged -= OnPostInteractionChanged;
     }
 
-    private void OnPostInteractionChanged(object? sender, PostInteractionEventArgs e)
-    {
-        if (e.PostId == Post.Id)
-        {
-            StateHasChanged();
-        }
-    }
+
 
     private string GetReplyTypeClass()
     {
@@ -191,37 +172,5 @@
     private string GetLinkDescription() => ""; // Implement based on your link preview data
     private string GetLinkUrl() => ""; // Implement based on your link preview data
 
-    private int GetSupportCountDisplay()
-    {
-        return Math.Max(0, Post.SupportCount ?? 0);
-    }
-
-    private async Task HandleReplyVoteChanged(VoteButtons.VoteChangedEventArgs args)
-    {
-        // Update local post data if needed
-        if (Post.Id == args.ContentId)
-        {
-            Post.SupportStatus = args.NewSupportStatus;
-            Post.SupportCount = args.NewSupportCount;
-            StateHasChanged();
-        }
-    }
-
-    private async Task HandleCommentClick()
-    {
-        await OnReplyClick.InvokeAsync(Post);
-    }
-
-    private async Task HandleProfileClick()
-    {
-        await OnProfileClick.InvokeAsync(Post);
-    }
-
-       
-           
-    private async Task HandleMediaClick()
-    {
-        // Handle media click (open fullscreen, etc.)
-        // Implement based on your media viewer requirements
-    }
+  
 }

@@ -1,0 +1,330 @@
+﻿@* Toxiq.WebApp.Client/Components/ShareContextMenu.razor *@
+@using Microsoft.FluentUI.AspNetCore.Components
+@using Toxiq.Mobile.Dto
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<div class="share-context-menu @(IsVisible ? "visible" : "hidden")" 
+     @onclick:stopPropagation="true"
+     style="@GetMenuPosition()">
+   
+    <div class="context-menu-backdrop" @onclick="Hide" @onclick:stopPropagation="false"></div>
+    
+    <div class="context-menu-content">
+        <!-- Echo Option -->
+        <button class="context-menu-item" @onclick="HandleEcho" @onclick:stopPropagation="true">
+            <div class="menu-item-icon">
+                <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.ArrowRepeatAll().WithColor("#ffffff"))" />
+            </div>
+            <span class="menu-item-text">Echo</span>
+        </button>
+
+        <!-- Copy Link Option -->
+        <button class="context-menu-item" @onclick="HandleCopyLink" @onclick:stopPropagation="true">
+            <div class="menu-item-icon">
+                <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Copy().WithColor("#ffffff"))" />
+            </div>
+            <span class="menu-item-text">Copy Link</span>
+        </button>
+
+        <!-- Share Option -->
+        <button class="context-menu-item" @onclick="HandleShare" @onclick:stopPropagation="true">
+            <div class="menu-item-icon">
+                <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share().WithColor("#ffffff"))" />
+            </div>
+            <span class="menu-item-text">Share</span>
+        </button>
+    </div>
+</div>
+
+<style>
+    /* Toxiq.WebApp.Client/wwwroot/css/share-context-menu.css */
+    /* Share Context Menu Styles - Based on Mobile App UX patterns */
+
+    .share-context-menu {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1000;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+        .share-context-menu.visible {
+            pointer-events: all;
+            opacity: 1;
+        }
+
+        .share-context-menu.hidden {
+            pointer-events: none;
+            opacity: 0;
+        }
+
+    .context-menu-backdrop {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: transparent;
+        cursor: default;
+    }
+
+    .context-menu-content {
+        position: absolute;
+        left: var(--menu-x, 50%);
+        top: var(--menu-y, 50%);
+        transform: translate(-50%, -10px);
+        background-color: var(--gray-800);
+        border: 1px solid var(--transparent-white);
+        border-radius: 12px;
+        padding: 8px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(10px);
+        min-width: 160px;
+        /* Animation */
+        animation: contextMenuSlideIn 0.2s ease-out;
+    }
+
+    @@keyframes contextMenuSlideIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translate(-50%, -5px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -10px) scale(1);
+    }
+
+    }
+
+    .context-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 12px 16px;
+        background: none;
+        border: none;
+        color: var(--white);
+        cursor: pointer;
+        border-radius: 8px;
+        transition: background-color 0.15s ease;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+        .context-menu-item:hover {
+            background-color: var(--hover-overlay);
+        }
+
+        .context-menu-item:active {
+            background-color: var(--active-overlay);
+            transform: scale(0.98);
+        }
+
+    .menu-item-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+    }
+
+        .menu-item-icon svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+    .menu-item-text {
+        flex: 1;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    /* Mobile optimizations */
+    @@media (max-width: 768px) {
+        .context-menu-content
+
+    {
+        /* On mobile, position near the bottom for easier thumb access */
+        left: 50% !important;
+        top: auto !important;
+        bottom: 20px;
+        transform: translateX(-50%);
+        animation: contextMenuSlideUp 0.2s ease-out;
+    }
+
+    .context-menu-item {
+        padding: 16px 20px;
+        font-size: 16px;
+    }
+
+    .menu-item-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+        .menu-item-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+    }
+
+    @@keyframes contextMenuSlideUp {
+        from
+
+    {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+
+    }
+
+    /* Specific styling for different menu items */
+    .context-menu-item:first-child .menu-item-icon {
+        color: var(--accent-color, #8b5cf6);
+    }
+
+    .context-menu-item:nth-child(2) .menu-item-icon {
+        color: var(--gray-300);
+    }
+
+    .context-menu-item:last-child .menu-item-icon {
+        color: var(--blue-400, #60a5fa);
+    }
+
+    /* Dark theme support */
+    @@media (prefers-color-scheme: dark) {
+        .context-menu-content
+
+    {
+        background-color: var(--gray-900);
+        border-color: var(--gray-700);
+    }
+
+    }
+
+    /* Accessibility */
+    .context-menu-item:focus {
+        outline: 2px solid var(--accent-color);
+        outline-offset: -2px;
+    }
+
+        .context-menu-item:focus:not(:focus-visible) {
+            outline: none;
+        }
+
+    /* High contrast mode support */
+    @@media (prefers-contrast: high) {
+        .context-menu-content
+
+    {
+        border-width: 2px;
+        border-color: var(--white);
+    }
+
+    .context-menu-item {
+        border: 1px solid transparent;
+    }
+
+        .context-menu-item:hover,
+        .context-menu-item:focus {
+            border-color: var(--white);
+        }
+
+    }
+</style>
+
+@code {
+    [Parameter] public BasePost Post { get; set; } = default!;
+    [Parameter] public bool IsVisible { get; set; } = false;
+    [Parameter] public EventCallback OnHide { get; set; }
+    [Parameter] public string? MenuX { get; set; }
+    [Parameter] public string? MenuY { get; set; }
+
+    private async Task HandleEcho()
+    {
+        await Hide();
+        
+        // Navigate to create post page with echo parameters
+        var echoUrl = $"/create-post?EchoPostId={Post.Id}&IsEcho=true&EchoReplyType=Text";
+        Navigation.NavigateTo(echoUrl);
+    }
+
+    private async Task HandleCopyLink()
+    {
+        await Hide();
+        
+        try
+        {
+            var postUrl = $"{Navigation.BaseUri}post/{Post.Id}";
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", postUrl);
+            await JSRuntime.InvokeVoidAsync("showToast", "Link copied to clipboard!");
+        }
+        catch (Exception)
+        {
+            // Fallback for older browsers
+            var postUrl = $"{Navigation.BaseUri}post/{Post.Id}";
+            await JSRuntime.InvokeVoidAsync("fallbackCopyTextToClipboard", postUrl);
+            await JSRuntime.InvokeVoidAsync("showToast", "Link copied to clipboard!");
+        }
+    }
+
+    private async Task HandleShare()
+    {
+        await Hide();
+        
+        try
+        {
+            // Try native share API first (mobile app equivalent)
+            var shareUrl = $"{Navigation.BaseUri}post/{Post.Id}";
+            var shareData = new
+            {
+                title = $"Post by @{Post.UserName}",
+                text = Post.Content?.Length > 100 ? Post.Content[..97] + "..." : Post.Content,
+                url = shareUrl
+            };
+
+            await JSRuntime.InvokeVoidAsync("navigator.share", shareData);
+        }
+        catch
+        {
+            // Fallback to clipboard copy
+            var shareUrl = $"{Navigation.BaseUri}post/{Post.Id}";
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", shareUrl);
+            await JSRuntime.InvokeVoidAsync("showToast", "Link copied to clipboard!");
+        }
+    }
+
+    private async Task Hide()
+    {
+        if (OnHide.HasDelegate)
+        {
+            await OnHide.InvokeAsync();
+        }
+    }
+
+    private string GetMenuPosition()
+    {
+        if (!string.IsNullOrEmpty(MenuX) && !string.IsNullOrEmpty(MenuY))
+        {
+            return $"--menu-x: {MenuX}; --menu-y: {MenuY};";
+        }
+        return "";
+    }
+}

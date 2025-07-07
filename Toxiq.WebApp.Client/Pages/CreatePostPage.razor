@@ -53,13 +53,13 @@
         <!-- Echo/Reply Section -->
         @if (IsEcho && EchoPost != null)
         {
-            <div class="echo-section">
+            <div >
                 <ReplyCard Post="@EchoPost" IsFullPost="false" />
             </div>
         }
 
         <!-- Color Picker Section -->
-        <div class="color-picker-section">
+@*         <div class="color-picker-section">
             <h3 class="color-picker-title">Choose Color</h3>
             <div class="color-picker-grid">
                 @foreach (var color in ColorList)
@@ -71,7 +71,7 @@
                     </div>
                 }
             </div>
-        </div>
+        </div> *@
 
         <!-- Action Buttons -->
         <div class="action-buttons">
@@ -255,7 +255,7 @@
 
 <style>
 .create-post-container {
-    background-color: var(--off-black);
+    background-color: var(--black);
     color: var(--white);
     min-height: 100vh;
     padding: var(--safe-area-inset-top) var(--safe-area-inset-right) var(--safe-area-inset-bottom) var(--safe-area-inset-left);
@@ -269,7 +269,7 @@
     border-bottom: 1px solid var(--transparent-white);
     position: sticky;
     top: 0;
-    background-color: var(--off-black);
+    background-color: var(--black);
     z-index: 10;
 }
 

@@ -15,7 +15,7 @@
             <div class="post-author" @onclick="HandleProfileClick" @onclick:stopPropagation="true">
                 <span class="author-name">@Post.Name</span>
                 <span class="author-username">@@@Post.UserName</span>
-               @*  <span class="post-timestamp">·</span>
+                @*  <span class="post-timestamp">·</span>
                 <span class="post-timestamp">@GetTimeAgo()</span> *@
             </div>
             <div class="post-header-actions">
@@ -24,7 +24,7 @@
                     <div class="burn-indicator" title="Burn Post">🔥</div>
                 }
                 <!-- Post Options Menu Button -->
-               @*  <button class="post-options-btn" @onclick="HandleOptionsClick" @onclick:stopPropagation="true">
+                @*  <button class="post-options-btn" @onclick="HandleOptionsClick" @onclick:stopPropagation="true">
                     <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size16.MoreHorizontal().WithColor("#6E6E6E"))" />
                 </button> *@
             </div>
@@ -46,9 +46,9 @@
                     @if (IsImageMedia(media))
                     {
                         <img src="@media.MediaPath"
-                             alt="Post attachment"
-                             class="post-image single-image"
-                             @onclick:stopPropagation="true" />
+                        alt="Post attachment"
+                        class="post-image single-image"
+                        @onclick:stopPropagation="true" />
                     }
                     else if (IsVideoMedia(media))
                     {
@@ -67,9 +67,9 @@
                             @if (IsImageMedia(media))
                             {
                                 <img src="@media.MediaPath"
-                                     alt="Post attachment"
-                                     class="post-image grid-image"
-                                     @onclick:stopPropagation="true" />
+                                alt="Post attachment"
+                                class="post-image grid-image"
+                                @onclick:stopPropagation="true" />
                             }
                         }
                         @if (Post.PostMedia.Count > 4)
@@ -84,36 +84,37 @@
         }
 
         <!-- Reply/Echo Content (if this is a reply) - Twitter-like quoted tweet style -->
-        @if (Post.ReplyType != ReplyType.Non && ReplyPost != null)
-        {
-            <div class="quoted-post" @onclick="HandleQuotedPostClick" @onclick:stopPropagation="true">
-                <ReplyCard Post="@ReplyPost"
-                           IsFullPost="false"
-                           ShowActions="false"
-                           OnReplyClick="@HandleQuotedPostClick"
-                           OnProfileClick="@HandleQuotedProfileClick" />
-            </div>
+        @if(Post.ReplyRefId != null){
+            @if (Post.ReplyType != ReplyType.Non)
+            {
+                <div class="quoted-post" @onclick="HandleQuotedPostClick" @onclick:stopPropagation="true">
+                    <ReplyCard Post="@Post"
+                    IsFullPost="false"
+                    ShowActions="false"/>
+                </div>
+            }
         }
+
 
         <!-- Action Buttons Row - Twitter-like layout -->
         <div class="post-actions">
-        
+
 
             <!-- Support Buttons (Upvote/Downvote) - Preserve existing VoteButtons component -->
             <VoteButtons ContentId="@Post.Id"
-                         ContentType="post"
-                         InitialSupportStatus="@Post.SupportStatus"
-                         InitialSupportCount="@Post.SupportCount"
-                         ShowCount="true"
-                         Variant="twitter-style"
-                         OnVoteChanged="@HandlePostVoteChanged" />
+            ContentType="post"
+            InitialSupportStatus="@Post.SupportStatus"
+            InitialSupportCount="@Post.SupportCount"
+            ShowCount="true"
+            Variant="twitter-style"
+            OnVoteChanged="@HandlePostVoteChanged" />
 
 
-                             <!-- Comment Button -->
+            <!-- Comment Button -->
             <button class="action-btn comment-btn transparent"
-                    @onclick="HandleCommentClick"
-                    @onclick:stopPropagation="true"
-                    title="Comment">
+            @onclick="HandleCommentClick"
+            @onclick:stopPropagation="true"
+            title="Comment">
                 <div class="btn-icon">
                     <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Comment().WithColor("var(--gray-300)"))" />
                 </div>
@@ -121,18 +122,25 @@
             </button>
 
             <!-- More Actions Button -->
-            <button class="action-btn comment-btn transparent"
-                    @onclick="HandleMoreActions"
-                    @onclick:stopPropagation="true"
-                    title="More actions">
+            <button class="action-btn share-btn transparent"
+            @onclick="HandleShareClick"
+            @onclick:stopPropagation="true"
+            @ref="shareButtonRef"
+            title="Share options">
                 <div class="btn-icon">
                     <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share().WithColor("var(--gray-300)"))" />
                 </div>
+                <span class="btn-text">Share</span>
             </button>
+            <ShareContextMenu Post="@Post"
+            IsVisible="@isShareMenuVisible"
+            OnHide="@HideShareMenu"
+            MenuX="@shareMenuX"
+            MenuY="@shareMenuY" />
         </div>
 
         <!-- Post Stats (if FullPost) -->
-@*         @if (FullPost)
+        @*         @if (FullPost)
         {
             <div class="post-stats-detailed">
                 <div class="stats-row">
@@ -169,6 +177,11 @@
     private bool? CurrentSupportStatus { get; set; }
     private int? CurrentSupportCount { get; set; }
     private bool IsProcessingVote { get; set; } = false;
+
+    private bool isShareMenuVisible = false;
+    private string? shareMenuX;
+    private string? shareMenuY;
+    private ElementReference shareButtonRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -349,7 +362,14 @@
     {
         if (ReplyPost != null)
         {
-            Navigation.NavigateTo($"/post/{ReplyPost.Id}");
+            switch(Post.ReplyType)
+            {
+                case ReplyType.Text:
+                    Navigation.NavigateTo($"/post/{ReplyPost.Id}");
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
@@ -394,5 +414,49 @@
     {
         // Navigate to shares/reposts view
         Navigation.NavigateTo($"/posts/{Post.Id}/shares");
+    }
+
+    private async Task HandleShareClick()
+    {
+        if (isShareMenuVisible)
+        {
+            await HideShareMenu();
+            return;
+        }
+
+        try
+        {
+            var rect = await JSRuntime.InvokeAsync<BoundingClientRect>("getBoundingClientRect", shareButtonRef);
+            shareMenuX = $"{rect.Left + (rect.Width / 2)}px";
+            shareMenuY = $"{rect.Top - 10}px";
+            isShareMenuVisible = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error positioning share menu: {ex.Message}");
+            shareMenuX = "50%";
+            shareMenuY = "50%";
+            isShareMenuVisible = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HideShareMenu()
+    {
+        isShareMenuVisible = false;
+        StateHasChanged();
+        await Task.CompletedTask;
+    }
+
+    // ADD THIS HELPER CLASS:
+    public class BoundingClientRect
+    {
+        public double Left { get; set; }
+        public double Top { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public double Right { get; set; }
+        public double Bottom { get; set; }
     }
 }
