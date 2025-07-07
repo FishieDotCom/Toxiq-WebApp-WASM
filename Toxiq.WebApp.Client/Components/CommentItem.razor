@@ -1,0 +1,817 @@
+﻿@* Toxiq.WebApp.Client/Components/CommentItem.razor *@
+@* Individual TikTok-Style Comment Component - Drag & Drop Ready *@
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Services.Api
+@inject IJSRuntime JSRuntime
+
+<div class="comment-item @(Comment.IsReply == true ? "reply-item" : "")">
+    <!-- Comment Header -->
+    <div class="comment-header">
+        <div class="comment-user-info">
+            <div class="user-details">
+                <div class="user-names">
+                    <span class="comment-username">@Comment.Name</span>
+                    <span class="comment-handle">@@@Comment.UserName</span>
+                </div>
+                <div class="comment-time">@GetRelativeTime()</div>
+            </div>
+        </div>
+
+        <!-- More Options -->
+        <button class="more-btn" @onclick="ToggleMoreOptions" title="More options">
+            <span class="more-icon">⋯</span>
+        </button>
+    </div>
+
+    <!-- Comment Content -->
+    @if (!string.IsNullOrEmpty(Comment.Content))
+    {
+        <div class="comment-text">
+            <FormattedText Text="@Comment.Content" />
+        </div>
+    }
+
+    <!-- Comment Sticker/Media -->
+    @if (Comment.PostMedia != null)
+    {
+        <div class="comment-media">
+            <img src="@Comment.PostMedia.MediaPath"
+                 alt="Sticker"
+                 class="comment-sticker" />
+        </div>
+    }
+
+    <!-- Comment Actions -->
+    <div class="comment-actions">
+        <!-- Like Button -->
+        <button class="action-btn like-btn @(Comment.SupportStatus == true ? "liked" : "")"
+                @onclick="HandleLike"
+                disabled="@isLiking"
+                title="Like">
+            <span class="action-icon heart-icon">@(Comment.SupportStatus == true ? "♥" : "♡")</span>
+            @if (Comment.SupportCount > 0)
+            {
+                <span class="action-count">@FormatCount(Comment.SupportCount.GetValueOrDefault(0))</span>
+            }
+
+            @if (showLikeAnimation)
+            {
+                <div class="like-animation">♥</div>
+            }
+        </button>
+
+        <!-- Dislike Button -->
+        <button class="action-btn dislike-btn @(Comment.SupportStatus == false ? "disliked" : "")"
+                @onclick="HandleDislike"
+                disabled="@isDisliking"
+                title="Dislike">
+            <span class="action-icon">👎</span>
+        </button>
+
+        <!-- Reply Button (Only for main comments) -->
+        @if (Comment.IsReply != true && ShowReplyButton)
+        {
+            <button class="action-btn reply-btn"
+                    @onclick="HandleReply"
+                    title="Reply">
+                <span class="action-icon">↩</span>
+                <span class="action-text">Reply</span>
+            </button>
+        }
+
+        <!-- Share Button -->
+        @if (ShowShareButton)
+        {
+            <button class="action-btn share-btn"
+                    @onclick="HandleShare"
+                    title="Share">
+                <span class="action-icon">↗</span>
+            </button>
+        }
+    </div>
+
+    <!-- Replies Section (Only for main comments) -->
+    @if (Comment.IsReply != true && HasReplies())
+    {
+        <div class="replies-section">
+            <!-- Toggle Replies Button -->
+            <button class="replies-toggle @(showReplies ? "expanded" : "")"
+                    @onclick="ToggleReplies">
+                <span class="replies-text">
+                    @(showReplies ? "Hide" : "View") @Comment.ReplyCount @(Comment.ReplyCount == 1 ? "reply" : "replies")
+                </span>
+                <span class="toggle-icon">@(showReplies ? "▲" : "▼")</span>
+            </button>
+
+            <!-- Replies Container -->
+            @if (showReplies && Comment.Replies?.Any() == true)
+            {
+                <div class="replies-container">
+                    @foreach (var reply in GetDisplayedReplies())
+                    {
+                        <CommentItem Comment="reply"
+                                     IsCreator="@(reply.UserId.ToString() == CreatorUserId)"
+                                     CurrentUserId="@CurrentUserId"
+                                     OnLike="OnLike"
+                                     OnDislike="OnDislike"
+                                     OnReply="OnReply"
+                                     OnShare="OnShare"
+                                     OnStickerClick="OnStickerClick"
+                                     ShowReplyButton="false"
+                                     ShowShareButton="@ShowShareButton"
+                                     MaxRepliesShown="@MaxRepliesShown" />
+                    }
+
+                    @if (Comment.Replies.Count > MaxRepliesShown && !showAllReplies)
+                    {
+                        <button class="show-more-replies" @onclick="ShowAllReplies">
+                            View @(Comment.Replies.Count - MaxRepliesShown) more replies
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    }
+
+    <!-- More Options Menu -->
+    @if (showMoreOptions)
+    {
+        <div class="more-options-menu">
+            @if (IsOwner())
+            {
+                <button class="menu-option delete-option" @onclick="HandleDelete">
+                    <span class="option-icon">🗑</span>
+                    <span>Delete</span>
+                </button>
+                <button class="menu-option edit-option" @onclick="HandleEdit">
+                    <span class="option-icon">✏️</span>
+                    <span>Edit</span>
+                </button>
+            }
+            else
+            {
+                <button class="menu-option report-option" @onclick="HandleReport">
+                    <span class="option-icon">⚠️</span>
+                    <span>Report</span>
+                </button>
+            }
+            <button class="menu-option copy-option" @onclick="HandleCopyLink">
+                <span class="option-icon">🔗</span>
+                <span>Copy Link</span>
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Comment Comment { get; set; } = default!;
+    [Parameter] public bool IsCreator { get; set; } = false;
+    [Parameter] public bool IsVerified { get; set; } = false;
+    [Parameter] public string CurrentUserId { get; set; } = "";
+    [Parameter] public string CreatorUserId { get; set; } = "";
+    [Parameter] public bool ShowReplyButton { get; set; } = true;
+    [Parameter] public bool ShowShareButton { get; set; } = true;
+    [Parameter] public int MaxRepliesShown { get; set; } = 3;
+
+    // Event Callbacks
+    [Parameter] public EventCallback<Comment> OnLike { get; set; }
+    [Parameter] public EventCallback<Comment> OnDislike { get; set; }
+    [Parameter] public EventCallback<Comment> OnReply { get; set; }
+    [Parameter] public EventCallback<Comment> OnShare { get; set; }
+    [Parameter] public EventCallback<Comment> OnDelete { get; set; }
+    [Parameter] public EventCallback<Comment> OnEdit { get; set; }
+    [Parameter] public EventCallback<Comment> OnReport { get; set; }
+    [Parameter] public EventCallback<MediaDto> OnStickerClick { get; set; }
+
+    private bool isLiking = false;
+    private bool isDisliking = false;
+    private bool showReplies = false;
+    private bool showAllReplies = false;
+    private bool showMoreOptions = false;
+    private bool showLikeAnimation = false;
+
+    private async Task HandleLike()
+    {
+        if (isLiking) return;
+
+        isLiking = true;
+        try
+        {
+            // Trigger like animation
+            if (Comment.SupportStatus != true)
+            {
+                await TriggerLikeAnimation();
+            }
+
+            await OnLike.InvokeAsync(Comment);
+        }
+        finally
+        {
+            isLiking = false;
+        }
+    }
+
+    private async Task HandleDislike()
+    {
+        if (isDisliking) return;
+
+        isDisliking = true;
+        try
+        {
+            await OnDislike.InvokeAsync(Comment);
+        }
+        finally
+        {
+            isDisliking = false;
+        }
+    }
+
+    private async Task HandleReply()
+    {
+        await OnReply.InvokeAsync(Comment);
+    }
+
+    private async Task HandleShare()
+    {
+        await OnShare.InvokeAsync(Comment);
+    }
+
+    private async Task HandleDelete()
+    {
+        showMoreOptions = false;
+        await OnDelete.InvokeAsync(Comment);
+    }
+
+    private async Task HandleEdit()
+    {
+        showMoreOptions = false;
+        await OnEdit.InvokeAsync(Comment);
+    }
+
+    private async Task HandleReport()
+    {
+        showMoreOptions = false;
+        await OnReport.InvokeAsync(Comment);
+    }
+
+    private async Task HandleCopyLink()
+    {
+        showMoreOptions = false;
+        // Copy comment link to clipboard
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText",
+            $"{GetBaseUrl()}/comment/{Comment.Id}");
+    }
+
+    private void ToggleReplies()
+    {
+        showReplies = !showReplies;
+        StateHasChanged();
+    }
+
+    private void ShowAllReplies()
+    {
+        showAllReplies = true;
+        StateHasChanged();
+    }
+
+    private void ToggleMoreOptions()
+    {
+        showMoreOptions = !showMoreOptions;
+        StateHasChanged();
+    }
+
+    private async Task TriggerLikeAnimation()
+    {
+        showLikeAnimation = true;
+        StateHasChanged();
+
+        await Task.Delay(600); // Animation duration
+
+        showLikeAnimation = false;
+        StateHasChanged();
+    }
+
+    private bool HasReplies()
+    {
+        return Comment.Replies?.Any() == true || Comment.ReplyCount > 0;
+    }
+
+    private List<Comment> GetDisplayedReplies()
+    {
+        if (Comment.Replies == null) return new List<Comment>();
+
+        return showAllReplies
+            ? Comment.Replies.ToList()
+            : Comment.Replies.Take(MaxRepliesShown).ToList();
+    }
+
+    private bool IsOwner()
+    {
+        return Comment.UserId.ToString() == CurrentUserId;
+    }
+
+    private string GetUserInitial()
+    {
+        var name = Comment.Name ?? Comment.UserName ?? "?";
+        return name.Length > 0 ? name[0].ToString().ToUpper() : "?";
+    }
+
+    private string GetUserGradient()
+    {
+        // Generate consistent gradient based on username
+        var hash = Comment.UserName?.GetHashCode() ?? 0;
+        var gradients = new[]
+        {
+            "linear-gradient(135deg, #667eea, #764ba2)",
+            "linear-gradient(135deg, #f093fb, #f5576c)",
+            "linear-gradient(135deg, #4facfe, #00f2fe)",
+            "linear-gradient(135deg, #43e97b, #38f9d7)",
+            "linear-gradient(135deg, #fa709a, #fee140)",
+            "linear-gradient(135deg, #a8edea, #fed6e3)",
+            "linear-gradient(135deg, #ffecd2, #fcb69f)",
+            "linear-gradient(135deg, #ff8a80, #ea6100)"
+        };
+
+        return gradients[Math.Abs(hash) % gradients.Length];
+    }
+
+    private string GetRelativeTime()
+    {
+        if (!Comment.DateCreated.HasValue) return "";
+
+        var timeSpan = DateTime.Now - Comment.DateCreated.Value;
+
+        if (timeSpan.TotalSeconds < 60) return "now";
+        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes}m";
+        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours}h";
+        if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays}d";
+        if (timeSpan.TotalDays < 30) return $"{(int)(timeSpan.TotalDays / 7)}w";
+
+        return Comment.DateCreated.Value.ToString("MMM d");
+    }
+
+    private string FormatCount(int count)
+    {
+        if (count < 1000) return count.ToString();
+        if (count < 1000000) return $"{count / 1000.0:F1}K";
+        return $"{count / 1000000.0:F1}M";
+    }
+
+    private string GetBaseUrl()
+    {
+        // Get current base URL for link copying
+        return ""; // Implement based on your URL structure
+    }
+}
+
+
+        <style>
+    /* Toxiq.WebApp.Client/wwwroot/css/comment-item.css */
+    /* Individual Comment Item Component - TikTok Style */
+
+    .comment-item {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background: transparent;
+        transition: all 0.2s ease;
+        position: relative;
+        animation: slideIn 0.3s ease-out;
+    }
+
+        .comment-item:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .comment-item.reply-item {
+            padding: 12px 16px;
+            margin-left: 48px;
+            border-left: 2px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.01);
+            border-radius: 0 8px 8px 0;
+        }
+
+    /* Comment Header */
+    .comment-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+
+    .comment-user-info {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        flex: 1;
+    }
+
+
+    .reply-item .user-initial {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+
+    .user-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .user-names {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 2px;
+    }
+
+    .comment-username {
+        font-weight: 600;
+        color: white;
+        margin-right: 8px;
+    }
+
+        .comment-username:hover {
+            text-decoration: underline;
+        }
+
+    .comment-handle {
+        font-size: 13px;
+        color: var(--gray-400);
+        font-weight: 400;
+    }
+
+    .comment-time {
+        font-size: 12px;
+        color: var(--gray-500);
+        font-weight: 400;
+    }
+
+    .more-btn {
+        background: none;
+        border: none;
+        color: var(--gray-400);
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 50%;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+
+        .more-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--gray-300);
+        }
+
+    .more-icon {
+        font-size: 16px;
+        transform: rotate(90deg);
+    }
+
+    /* Comment Content */
+    .comment-text {
+        font-size: 15px;
+        line-height: 1.4;
+        color: var(--white);
+        margin-bottom: 12px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        padding-left: 48px;
+    }
+
+    .reply-item .comment-text {
+        padding-left: 40px;
+        font-size: 14px;
+    }
+
+    /* Comment Media */
+    .comment-media {
+        margin: 8px 0 12px 48px;
+    }
+
+    .reply-item .comment-media {
+        margin-left: 40px;
+    }
+
+    .comment-sticker {
+        max-width: 100px;
+        max-height: 100px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+        .comment-sticker:hover {
+            transform: scale(1.05);
+        }
+
+    .reply-item .comment-sticker {
+        max-width: 80px;
+        max-height: 80px;
+    }
+
+    /* Comment Actions */
+    .comment-actions {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding-left: 48px;
+    }
+
+    .reply-item .comment-actions {
+        padding-left: 40px;
+        gap: 16px;
+    }
+
+    .action-btn {
+        background: none;
+        border: none;
+        color: var(--gray-400);
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        transition: all 0.2s ease;
+        font-weight: 500;
+        position: relative;
+    }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--gray-300);
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    .action-icon {
+        font-size: 16px;
+        line-height: 1;
+    }
+
+    .action-count {
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .action-text {
+        font-size: 12px;
+    }
+
+    /* Reply Button */
+    .reply-btn:hover {
+        color: var(--info-color);
+    }
+
+    /* Share Button */
+    .share-btn:hover {
+        color: var(--success-color);
+    }
+
+    /* Replies Section */
+    .replies-section {
+        margin-top: 12px;
+        padding-left: 48px;
+    }
+
+    .replies-toggle {
+        background: none;
+        border: none;
+        color: var(--info-color);
+        font-size: 13px;
+        cursor: pointer;
+        padding: 8px 0;
+        margin-bottom: 8px;
+        transition: color 0.2s ease;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .replies-toggle:hover {
+            color: var(--white);
+        }
+
+    .toggle-icon {
+        font-size: 10px;
+        transition: transform 0.2s ease;
+    }
+
+    .replies-toggle.expanded .toggle-icon {
+        transform: rotate(180deg);
+    }
+
+    .replies-container {
+        border-left: 2px solid rgba(255, 255, 255, 0.05);
+        margin-left: -48px;
+        padding-left: 48px;
+        border-radius: 0 0 0 8px;
+    }
+
+    .show-more-replies {
+        background: none;
+        border: none;
+        color: var(--info-color);
+        font-size: 13px;
+        cursor: pointer;
+        padding: 8px 16px;
+        margin: 8px 0;
+        transition: color 0.2s ease;
+        font-weight: 500;
+    }
+
+        .show-more-replies:hover {
+            color: var(--white);
+        }
+
+    /* More Options Menu */
+    .more-options-menu {
+        position: absolute;
+        top: 40px;
+        right: 16px;
+        background: var(--gray-900);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 8px 0;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        z-index: 100;
+        min-width: 150px;
+        animation: menuSlideIn 0.2s ease-out;
+    }
+
+    @@keyframes menuSlideIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    }
+
+    .menu-option {
+        background: none;
+        border: none;
+        color: var(--gray-300);
+        font-size: 14px;
+        cursor: pointer;
+        padding: 10px 16px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.2s ease;
+        text-align: left;
+    }
+
+        .menu-option:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--white);
+        }
+
+        .menu-option.delete-option:hover {
+            color: #ff4444;
+            background: rgba(255, 68, 68, 0.1);
+        }
+
+        .menu-option.report-option:hover {
+            color: #ff6b35;
+            background: rgba(255, 107, 53, 0.1);
+        }
+
+    .option-icon {
+        font-size: 16px;
+    }
+
+    /* Animations */
+    @@keyframes slideIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    }
+
+    /* Mobile Responsive */
+    @@media (max-width: 480px) {
+        .comment-item
+
+    {
+        padding: 12px;
+    }
+
+    .comment-item.reply-item {
+        margin-left: 32px;
+        padding: 10px 12px;
+    }
+
+    .user-initial {
+        width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
+
+    .reply-item .user-initial {
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+    }
+
+    .comment-text,
+    .comment-media,
+    .comment-actions,
+    .replies-section {
+        padding-left: 44px;
+    }
+
+    .reply-item .comment-text,
+    .reply-item .comment-media,
+    .reply-item .comment-actions {
+        padding-left: 36px;
+    }
+
+    .comment-actions {
+        gap: 16px;
+    }
+
+    .action-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
+    .action-icon {
+        font-size: 14px;
+    }
+
+    .more-options-menu {
+        right: 12px;
+        min-width: 140px;
+    }
+
+    }
+
+    /* High Contrast Mode */
+    @@media (prefers-contrast: high) {
+        .comment-item
+
+    {
+        border-bottom-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .comment-item.reply-item {
+        border-left-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .action-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    }
+
+    /* Focus States for Accessibility */
+    .action-btn:focus,
+    .more-btn:focus,
+    .replies-toggle:focus {
+        outline: 2px solid var(--info-color);
+        outline-offset: 2px;
+    }
+
+    /* Loading States */
+    .action-btn:disabled .action-icon {
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        from
+
+    {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+
+    }
+        </style>

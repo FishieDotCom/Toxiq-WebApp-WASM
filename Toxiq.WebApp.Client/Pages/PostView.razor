@@ -53,13 +53,7 @@
     padding: 0 10px;
     }
 
-    .comment-item {
-    background: #1a1a1a;
-    border-radius: 12px;
-    padding: 12px;
-    margin-bottom: 10px;
-    border-left: 3px solid #333;
-    }
+  
 
     .comment-item.reply {
     margin-left: 20px;
@@ -380,6 +374,7 @@
     {
         <!-- Post Content -->
         <div class="post-detail">
+
             <PostCard Post="@post" FullPost="true" />
         </div>
 
@@ -389,6 +384,8 @@
             {
                 @foreach (var comment in comments)
                 {
+                    @* <CommentItem Comment="@comment" OnDislike="HandleCommentDownvote" OnLike="HandleCommentUpvote" /> *@
+
                     <div class="comment-item @(comment.IsReply.GetValueOrDefault(false) ? "reply" : "")">
                         <div class="comment-header">
                             <span class="comment-author">@comment.Name</span>
@@ -714,12 +711,16 @@
                     Sort = SortType.New
                 });
 
-            comment.Replies = new ObservableCollection<Comment>(replyResult.Data ?? new List<Comment>());
-
-            foreach (var reply in comment.Replies)
+            foreach (var reply in replyResult.Data)
             {
-                reply.Content = ProcessCommentContent(reply.Content);
+                if (!string.IsNullOrEmpty(reply.Content))
+                    reply.Content = ProcessCommentContent(reply.Content.TrimEnd().TrimStart());
+
+                if (!comment.Replies.Any(x => x.Id == reply.Id))
+                    comment.Replies.Add(reply);
+
             }
+            comment.ReplyCount = replyResult.Data.Count();
 
             StateHasChanged();
         }
@@ -800,15 +801,27 @@
 
             var submittedComment = await ApiService.CommentService.CommentOnPost(newComment);
 
+            int parentCommentIndex = -1;
+
             if (replyTarget != null)
             {
-                // Add to replies
-                var parentComment = comments.FirstOrDefault(c => c.Id == replyTarget.Id);
+                // Find the parent comment using MyComment.RepliedTo
+                var parentComment = comments.FirstOrDefault(c => c.Id == newComment.RepliedTo);
                 if (parentComment != null)
                 {
-                    parentComment.Replies.Add(submittedComment);
-                    parentComment.ReplyCount = (parentComment.ReplyCount ?? 0) + 1;
+                    parentCommentIndex = comments.IndexOf(parentComment);
+                    // Add the reply comment to the parent comment's Replies collection
+                    parentComment.Replies.Add(newComment);
+
+                    // Update the reply count
+                    if (parentComment.ReplyCount == null)
+                        parentComment.ReplyCount = 1;
+                    else
+                        parentComment.ReplyCount++;
+
                 }
+
+                StateHasChanged();
             }
             else
             {
