@@ -1,0 +1,206 @@
+/* Base button styles */
+.btn {
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    padding: var(--spacing-sm) var(--spacing-lg); /* Requires --spacing-sm and --spacing-lg to be defined */
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+/* Button variants */
+.btn--primary {
+    background-color: var(--color-primary);
+    color: var(--color-primary-dark-text);
+}
+
+.btn--secondary {
+    background-color: var(--color-transparent-white);
+    color: var(--color-text-primary);
+    border: 2px solid var(--color-border);
+}
+
+.btn--ghost {
+    background-color: transparent;
+    color: var(--color-text-primary);
+}
+
+/* Button states */
+.btn:hover { background-color: var(--color-hover); }
+.btn:active { background-color: var(--color-active); }
+.btn:disabled {
+    opacity: var(--disabled-opacity);
+    cursor: not-allowed;
+    background-color: var(--color-disabled); /* Added for better visual feedback */
+}
+
+/* Button sizes */
+.btn--sm {
+    /* Requires --spacing-xs and --spacing-sm to be defined */
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+}
+
+.btn--lg {
+    /* Requires --spacing-lg and --spacing-xl to be defined */
+    padding: var(--spacing-lg) var(--spacing-xl);
+    font-size: var(--font-size-lg);
+}
+
+/* Button with icon and text */
+.btn { /* Ensure base btn can contain flex items properly */
+    gap: var(--spacing-xs); /* Default gap between icon and text */
+}
+
+.btn__icon {
+    display: inline-flex; /* Changed from flex to inline-flex */
+    align-items: center;
+    justify-content: center;
+    /* Icon size should be controlled by the SVG's width/height or font-size if it's a font icon */
+}
+.btn__icon svg { /* Default sizing, can be overridden by specific button types or sizes */
+    width: var(--font-size-base); /* 16px */
+    height: var(--font-size-base); /* 16px */
+    fill: currentColor;
+}
+
+.btn__text {
+    /* font-weight, font-size are inherited from .btn or its size modifiers by default */
+}
+
+/* Modifier for icon-only buttons if they need specific padding/sizing */
+.btn--icon-only {
+    padding: var(--spacing-sm); /* Adjust padding for icon-only buttons */
+    gap: 0; /* No gap needed if only icon */
+}
+.btn--icon-only .btn__text {
+    display: none; /* Hide text if it exists */
+}
+
+
+/* Card-specific action button adjustments (can be in cards.css or here if generic enough) */
+/* Using .card__action-btn class from PostCard.razor */
+.card__action-btn {
+    /* Example: if card actions need specific flex behavior */
+    /* flex: 1; /* From original .action-btn, if this behavior is desired */
+    border-radius: 15px; /* Specific border radius from original .comment-btn, .share-btn */
+}
+
+.btn--ghost.card__action-btn:hover {
+    background-color: var(--color-active); /* From original .action-btn:hover (rgba(255,255,255,0.2)) */
+}
+
+
+/* Responsive styles for buttons, particularly for card actions */
+@media (max-width: 768px) { /* --breakpoint-md */
+    .btn.card__action-btn { /* Targeting buttons used as card actions */
+        padding: var(--spacing-xs) var(--spacing-sm); /* Original: 6px 10px */
+        font-size: calc(var(--font-size-sm) - 1px); /* Original: 13px */
+        gap: var(--spacing-xs); /* Original: 8px */
+    }
+    .btn.card__action-btn .btn__icon svg {
+        width: calc(var(--font-size-base) - 2px); /* Original: 16px */
+        height: calc(var(--font-size-base) - 2px);
+    }
+    .btn.card__action-btn .btn__text {
+        font-size: calc(var(--font-size-sm) - 1px); /* Original: 13px */
+    }
+}
+
+@media (max-width: 375px) { /* --breakpoint-sm or custom */
+    .btn.card__action-btn {
+        padding: var(--spacing-xs) var(--spacing-xs); /* Original: 5px 8px */
+        font-size: var(--font-size-xs); /* Original: 12px */
+        gap: var(--spacing-unit); /* Original: 6px */
+    }
+    .btn.card__action-btn:not(.btn--icon-only) .btn__text { /* Hide text if not icon only */
+        display: none;
+    }
+     .btn.card__action-btn.btn--icon-only { /* Ensure icon-only buttons are still padded okay */
+        padding: var(--spacing-xs);
+    }
+}
+
+/* Dark mode considerations for card action buttons */
+/* Original .action-btn had a background in dark mode. .btn--ghost is transparent.
+   This might require a new button variant e.g. .btn--subtle which has this bg in dark mode.
+   Or, we can override .btn--ghost in dark mode contexts if that's the desired global behavior.
+   For now, let's assume .btn--ghost remains transparent and a component would switch to .btn--secondary or another
+   variant if a background is needed in dark mode.
+   The provided spec implies .btn--ghost should be transparent.
+*/
+
+/* High contrast mode for buttons */
+@media (prefers-contrast: high) {
+    .btn.card__action-btn { /* Or general .btn if all buttons get border in high contrast */
+        border: 1px solid var(--color-text-primary); /* Original: rgba(255,255,255,0.3) - made it stronger */
+    }
+    .btn--primary.card__action-btn { /* Ensure primary buttons still look distinct */
+        border-color: var(--color-primary-dark-text);
+    }
+}
+
+/* Styles for .vote-buttons.twitter-style */
+/* This could be a .btn-group variant or specific styles for the VoteButtons component */
+.vote-buttons[Variant="twitter-style"] { /* This selector might not work directly, depends on Blazor output */
+    display: flex;
+    align-items: center;
+    gap: 0; /* Original */
+}
+
+.vote-buttons[Variant="twitter-style"] .vote-btn { /* Assuming VoteButtons component renders buttons with .vote-btn */
+    /* This is essentially a new button variant */
+    font-family: var(--font-family); /* Base button styles */
+    background: none;
+    border: none;
+    color: var(--color-gray-500); /* Original */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs); /* Original: 6px */
+    padding: var(--spacing-xs); /* Original: 8px */
+    border-radius: 20px; /* Original */
+    transition: all 0.2s ease; /* Base button styles */
+    font-size: calc(var(--font-size-sm) - 1px); /* Original: 13px */
+    font-weight: 400; /* Original */
+    min-height: auto; /* Override .btn min-height if too large */
+}
+
+.vote-buttons[Variant="twitter-style"] .vote-btn .btn__icon svg { /* If .btn__icon is used inside */
+    width: 18px; /* Original */
+    height: 18px; /* Original */
+    fill: currentColor;
+}
+.vote-buttons[Variant="twitter-style"] .vote-btn .btn__text { /* If .btn__text for count */
+    font-size: calc(var(--font-size-sm) - 1px); /* Original: 13px */
+    font-weight: 400; /* Original */
+    color: inherit;
+}
+
+/* Hover states for twitter-style vote buttons */
+.vote-buttons[Variant="twitter-style"] .vote-btn.upvote-btn:hover { /* Assuming .upvote-btn class exists */
+    background-color: var(--color-success-subtle, rgba(34, 197, 94, 0.1)); /* Define --color-success-subtle */
+    color: var(--color-success); /* Original: #22c55e */
+}
+.vote-buttons[Variant="twitter-style"] .vote-btn.downvote-btn:hover { /* Assuming .downvote-btn class exists */
+    background-color: var(--color-error-subtle, rgba(239, 68, 68, 0.1)); /* Define --color-error-subtle */
+    color: var(--color-error); /* Original: #ef4444 */
+}
+
+/* Active states for twitter-style vote buttons */
+.vote-buttons[Variant="twitter-style"] .vote-btn.active-up { /* Assuming .active-up class exists */
+    color: var(--color-success);
+    /* Optionally, a more pronounced background if needed */
+    /* background-color: var(--color-success-subtle, rgba(34, 197, 94, 0.1)); */
+}
+.vote-buttons[Variant="twitter-style"] .vote-btn.active-down { /* Assuming .active-down class exists */
+    color: var(--color-error);
+    /* background-color: var(--color-error-subtle, rgba(239, 68, 68, 0.1)); */
+}

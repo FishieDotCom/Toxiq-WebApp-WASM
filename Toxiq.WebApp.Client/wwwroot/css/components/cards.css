@@ -1,0 +1,260 @@
+.card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.card--post {
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0; /* Overrides base .card radius */
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    position: relative;
+    cursor: pointer; /* From original .post-card */
+    transition: background-color 0.2s ease; /* From original .post-card */
+}
+
+.card--post:hover {
+    background-color: var(--color-hover); /* Loosely based on original rgba(255,255,255,0.02) */
+}
+
+/* Modifier for burn posts, can be extended with specific burn styles */
+.card--post.card--burn {
+    /* Example: border-left: 2px solid var(--color-accent); */
+}
+
+/* Modifier for full view if layout changes significantly */
+.card--post.card--full-view {
+    /* Styles for when the card is in a detailed view */
+}
+
+.card--elevated {
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.25);
+}
+
+.card__header {
+    padding: var(--spacing-sm); /* Original: 12px padding for .post-content which wraps header */
+                               /* .card__header itself had no padding but margin-bottom */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs); /* Original: 8px */
+    /* border-bottom: 1px solid var(--color-border); Removed, as card--post has overall border-bottom */
+}
+
+.card__content {
+    /* This is the main wrapper inside .card--post */
+    padding: var(--spacing-sm); /* Original .post-content padding: 12px */
+}
+
+.card__footer {
+    padding: var(--spacing-sm); /* Consistent padding */
+    border-top: 1px solid var(--color-border);
+}
+
+/* Author styles within card header */
+.card__author {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs); /* Original: 8px */
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+.card__author:hover {
+    opacity: 0.8;
+}
+.card__author-name { /* Leverages .text-body which sets font-size, weight, color */
+    /* Specific overrides if .text-body is not enough */
+}
+.card__author-username {
+    font-size: var(--font-size-base); /* Original: 16px */
+    font-weight: 600; /* Original: 600 */
+    color: var(--color-text-primary); /* Original: var(--white) */
+    cursor: pointer;
+    /* If .text-username is preferred, ensure it matches this look or update spec */
+}
+
+.card__header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+.card__header-actions .burn-indicator { /* Style for '🔥' */
+    font-size: var(--font-size-lg); /* Original: 16px, made slightly larger */
+}
+
+
+/* Media container and items */
+.card__media-container {
+    margin-top: var(--spacing-xs);    /* Original: 8px */
+    margin-bottom: var(--spacing-xs); /* Original: 8px */
+}
+.card__image, .card__video {
+    max-width: 100%;
+    border-radius: var(--spacing-xs); /* Original: 8px */
+    display: block; /* Ensure proper block display for centering/sizing */
+}
+.card__image {
+    max-height: 512px; /* Original */
+    object-fit: contain;
+    width: 100%; /* Original */
+}
+.card__image--single { /* Specific styles for single image if any */ }
+.card__image--grid { /* Specific styles for grid image if any */ }
+
+.card__video {
+    /* Add video specific styles if needed */
+}
+
+/* Media Grid System */
+.card__media-grid {
+    display: grid;
+    gap: var(--spacing-xs); /* Adjust as needed */
+    border-radius: var(--spacing-xs);
+    overflow: hidden; /* Ensures content (images) respect the grid's rounded corners */
+}
+.card__media-grid--2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+.card__media-grid--3, .card__media-grid--4 { /* Twitter shows 1 large, 2 small for 3 items */
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr); /* For 4 items or 1 large + 2 small */
+}
+.card__media-grid--3 .card__image--grid:first-child {
+    grid-row: span 2; /* Make first image taller for 3-item layout */
+}
+.card__media-grid--4 .card__image--grid {
+    aspect-ratio: 1 / 1; /* Maintain square aspect ratio for grid items */
+    object-fit: cover; /* Ensure images fill the grid cell */
+    width: 100%;
+    height: 100%;
+}
+/* More complex grid layouts (like Twitter's 1 large, 2/3 small) would need more specific selectors for child elements */
+
+
+.card__media-count-overlay {
+    /* Styles for the +N overlay on media grids */
+    position: absolute;
+    bottom: var(--spacing-sm);
+    right: var(--spacing-sm);
+    background-color: rgba(0,0,0,0.7);
+    color: var(--color-white);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--spacing-unit); /* 4px */
+    font-size: var(--font-size-sm);
+}
+
+/* Quoted Post Area */
+.card__quoted-post {
+    margin-top: var(--spacing-xs);
+    /* background: rgba(255, 255, 255, 0.1); /* Original .reply-content - use a variable */
+    background-color: var(--color-surface-variant, rgba(255, 255, 255, 0.08)); /* Define --color-surface-variant or use existing like --color-surface */
+    padding: var(--spacing-sm); /* Original: 12px */
+    border-radius: var(--spacing-xs); /* Original: 8px */
+    margin-bottom: var(--spacing-xs);
+    border: 1px solid var(--color-border); /* Add a subtle border */
+}
+/* Styles for ReplyCard component when used as a quoted post might need to be adjusted in ReplyCard.css or here. */
+
+
+/* Actions row */
+.card__actions {
+    max-width: fit-content;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: var(--spacing-xs); /* Original: 8px, can be var(--spacing-sm) for more space */
+    padding-top: var(--spacing-sm); /* Add some top padding */
+}
+
+/* Card Separator (from .post-card::after) */
+.card--post::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background-color: var(--color-border); /* Original: rgba(255,255,255,0.3), opacity:0.3. --color-border is rgba(182,182,182,0.20) */
+    margin: 0 var(--spacing-sm); /* Original: 0 12px */
+}
+.card--post:last-child::after {
+    display: none;
+}
+
+
+/* Added based on Component Validation: ReplyCard uses .card--reply */
+.card--reply {
+    /* Styles for reply cards, e.g., different background or border */
+    /* For now, inherits from .card, can be customized later */
+    background-color: transparent; /* Replies might not have their own card bg, but inherit from parent or page */
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--spacing-sm);
+}
+.card--reply .card__header {
+    padding: 0; /* Remove default header padding if it's too much for replies */
+    margin-bottom: var(--spacing-xs);
+}
+.card--reply .card__content {
+    padding: 0; /* Remove default content padding */
+}
+.card--reply .card__actions {
+    padding-top: var(--spacing-xs);
+}
+
+/* Responsive styles from post-card.css, adapted to new BEM structure */
+@media (max-width: 768px) { /* --breakpoint-md */
+    .card__content { /* Corresponds to old .post-content */
+        padding: var(--spacing-sm); /* Original: 10px */
+    }
+    .card__header {
+        margin-bottom: var(--spacing-xs); /* Original: 6px */
+    }
+    .card__author-name, /* Assuming these are base 16px, will scale with text-body if used */
+    .card__author-username {
+        font-size: var(--font-size-sm); /* Original: 15px */
+    }
+
+    /* .card__main-text would inherit from typography.css changes for responsiveness */
+
+    .card__actions {
+        gap: var(--spacing-sm); /* Original: 12px */
+        /* height: 36px; /* Let height be intrinsic */
+        margin-top: var(--spacing-xs); /* Original: 8px */
+    }
+
+    .card__quoted-post {
+        padding: var(--spacing-xs); /* Original: 10px */
+    }
+}
+
+@media (max-width: 375px) { /* --breakpoint-sm or custom */
+    .card__content {
+        padding: var(--spacing-xs); /* Original: 8px */
+    }
+    .card__actions {
+        gap: var(--spacing-xs); /* Original: 8px */
+    }
+    /* Hiding text on action buttons on small screens is handled in buttons.css */
+}
+
+/* Dark mode preferences from post-card.css (mostly covered by variables already) */
+/* @media (prefers-color-scheme: dark) { } */
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .card--post {
+        border: 1px solid var(--color-text-primary); /* Original: var(--white) */
+    }
+    /* Action button borders handled in buttons.css */
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .card--post,
+    .card__author {
+        transition: none;
+    }
+    /* Action button transitions handled in buttons.css */
+}

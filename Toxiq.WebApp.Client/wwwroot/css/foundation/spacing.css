@@ -1,0 +1,11 @@
+/* Spacing variables */
+:root {
+    --spacing-unit: 4px;
+    --spacing-xs: calc(var(--spacing-unit) * 2);   /* 8px */
+    --spacing-sm: calc(var(--spacing-unit) * 3);   /* 12px */
+    --spacing-base: calc(var(--spacing-unit) * 4);  /* 16px */
+    --spacing-lg: calc(var(--spacing-unit) * 6);   /* 24px */
+    --spacing-xl: calc(var(--spacing-unit) * 8);   /* 32px */
+    --spacing-2xl: calc(var(--spacing-unit) * 12); /* 48px */
+    --spacing-3xl: calc(var(--spacing-unit) * 16); /* 64px */
+}

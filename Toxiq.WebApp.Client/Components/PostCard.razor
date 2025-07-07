@@ -8,37 +8,37 @@
 @inject IFeedService FeedService
 @implements IDisposable
 
-<div class="post-card @GetPostTypeClass()" @onclick="HandlePostClick">
-    <div class="post-content">
+<div class="card card--post @(Post.Type == PostType.Burn ? "card--burn" : "") @(FullPost ? "card--full-view" : "") card--elevated" @onclick="HandlePostClick">
+    <div class="card__content"> <!-- Changed from post-content to card__content -->
         <!-- Header - Twitter-like with author info and timestamp -->
-        <div class="post-header">
-            <div class="post-author" @onclick="HandleProfileClick" @onclick:stopPropagation="true">
-                <span class="author-name">@Post.Name</span>
-                <span class="author-username">@@@Post.UserName</span>
+        <div class="card__header"> <!-- Changed from post-header to card__header -->
+            <div class="card__author" @onclick="HandleProfileClick" @onclick:stopPropagation="true">
+                <span class="card__author-name text-body">@Post.Name</span>
+                <span class="card__author-username">@@@Post.UserName</span>
                @*  <span class="post-timestamp">·</span>
                 <span class="post-timestamp">@GetTimeAgo()</span> *@
             </div>
-            <div class="post-header-actions">
+            <div class="card__header-actions"> <!-- Changed from post-header-actions -->
                 @if (Post.Type == PostType.Burn)
                 {
                     <div class="burn-indicator" title="Burn Post">🔥</div>
                 }
                 <!-- Post Options Menu Button -->
-               @*  <button class="post-options-btn" @onclick="HandleOptionsClick" @onclick:stopPropagation="true">
-                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size16.MoreHorizontal().WithColor("#6E6E6E"))" />
+               @*  <button class="btn btn--ghost card__action-btn card__action-btn--icon-only" @onclick="HandleOptionsClick" @onclick:stopPropagation="true">
+                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size16.MoreHorizontal().WithColor("var(--color-gray-500)"))" />
                 </button> *@
             </div>
         </div>
 
         <!-- Main Content -->
-        <div class="post-text" style="@GetContentStyle()">
+        <div class="card__main-text @(FullPost ? "" : "text-body--truncated")">
             <FormattedText Text="@Post.Content" />
         </div>
 
         <!-- Media (Images/Video) - Twitter-like media display -->
         @if (Post.PostMedia?.Count > 0)
         {
-            <div class="post-media">
+            <div class="card__media-container">
                 @if (Post.PostMedia.Count == 1)
                 {
                     <!-- Single media item -->
@@ -47,12 +47,12 @@
                     {
                         <img src="@media.MediaPath"
                              alt="Post attachment"
-                             class="post-image single-image"
+                             class="card__image card__image--single"
                              @onclick:stopPropagation="true" />
                     }
                     else if (IsVideoMedia(media))
                     {
-                        <video class="post-video" controls>
+                        <video class="card__video" controls>
                             <source src="@media.MediaPath" type="video/mp4">
                             Your browser does not support video playback.
                         </video>
@@ -61,20 +61,20 @@
                 else if (Post.PostMedia.Count > 1)
                 {
                     <!-- Multiple media items - Twitter-like grid -->
-                    <div class="post-media-grid @GetMediaGridClass()">
+                    <div class="card__media-grid @GetMediaGridClass()">
                         @foreach (var media in Post.PostMedia.Take(4)) // Max 4 media items like Twitter
                         {
                             @if (IsImageMedia(media))
                             {
                                 <img src="@media.MediaPath"
                                      alt="Post attachment"
-                                     class="post-image grid-image"
+                                     class="card__image card__image--grid"
                                      @onclick:stopPropagation="true" />
                             }
                         }
                         @if (Post.PostMedia.Count > 4)
                         {
-                            <div class="media-count-overlay" @onclick:stopPropagation="true">
+                            <div class="card__media-count-overlay" @onclick:stopPropagation="true">
                                 <span>+@(Post.PostMedia.Count - 4)</span>
                             </div>
                         }
@@ -86,7 +86,7 @@
         <!-- Reply/Echo Content (if this is a reply) - Twitter-like quoted tweet style -->
         @if (Post.ReplyType != ReplyType.Non && ReplyPost != null)
         {
-            <div class="quoted-post" @onclick="HandleQuotedPostClick" @onclick:stopPropagation="true">
+            <div class="card__quoted-post" @onclick="HandleQuotedPostClick" @onclick:stopPropagation="true">
                 <ReplyCard Post="@ReplyPost"
                            IsFullPost="false"
                            ShowActions="false"
@@ -96,7 +96,7 @@
         }
 
         <!-- Action Buttons Row - Twitter-like layout -->
-        <div class="post-actions">
+        <div class="card__actions"> <!-- Changed from post-actions -->
         
 
             <!-- Support Buttons (Upvote/Downvote) - Preserve existing VoteButtons component -->
@@ -110,24 +110,20 @@
 
 
                              <!-- Comment Button -->
-            <button class="action-btn comment-btn transparent"
+            <button class="btn btn--ghost card__action-btn"
                     @onclick="HandleCommentClick"
                     @onclick:stopPropagation="true"
                     title="Comment">
-                <div class="btn-icon">
-                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Comment().WithColor("#6E6E6E"))" />
-                </div>
-                <span class="btn-text">@(Post.CommentCount ?? 0)</span>
+                <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Comment().WithColor("var(--color-gray-500)"))" />
+                <span class="btn__text">@(Post.CommentCount ?? 0)</span>
             </button>
 
             <!-- More Actions Button -->
-            <button class="action-btn more-btn transparent"
+            <button class="btn btn--ghost card__action-btn card__action-btn--icon-only"
                     @onclick="HandleMoreActions"
                     @onclick:stopPropagation="true"
                     title="More actions">
-                <div class="btn-icon">
-                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share().WithColor("#6E6E6E"))" />
-                </div>
+                <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share().WithColor("var(--color-gray-500)"))" />
             </button>
         </div>
 
@@ -212,26 +208,6 @@
         }
     }
 
-    private string GetPostTypeClass()
-    {
-        var baseClass = "post-card";
-
-        if (Post.Type == PostType.Burn)
-            baseClass += " burn-post";
-
-        if (FullPost)
-            baseClass += " full-post";
-
-        return baseClass;
-    }
-
-    private string GetContentStyle()
-    {
-        var maxHeight = FullPost ? "none" : "200px";
-        var overflow = FullPost ? "visible" : "hidden";
-        return $"max-height: {maxHeight}; overflow: {overflow};";
-    }
-
     private string GetTimeAgo()
     {
         return "";
@@ -271,9 +247,9 @@
     {
         return Post.PostMedia?.Count switch
         {
-            2 => "media-grid-2",
-            3 => "media-grid-3",
-            4 or > 4 => "media-grid-4",
+            2 => "card__media-grid--2",
+            3 => "card__media-grid--3",
+            4 or > 4 => "card__media-grid--4",
             _ => ""
         };
     }

@@ -1,0 +1,56 @@
+/* colors.css - Mobile App Parity */
+:root {
+    /* Primary Colors - Exact mobile app mapping */
+    --color-primary: #FFFFFF;
+    --color-primary-dark: #FFFFFF;
+    --color-primary-dark-text: #242424;
+    --color-secondary: #DFD8F7;
+    --color-secondary-dark-text: #FFFFFF;
+    --color-tertiary: #FFFFFF;
+
+    /* Base Colors */
+    --color-white: #FFFFFF;
+    --color-black: #000000;
+    --color-magenta: #D600AA;
+    --color-midnight-blue: #190649;
+    --color-off-black: #0e0e0e;
+    --color-off-white: #fefefe;
+
+    /* Transparent Colors */
+    --color-transparent-black: rgba(29, 29, 51, 0.19);
+    --color-transparent-black-dark: rgba(29, 29, 51, 0.38);
+    --color-transparent-white: rgba(182, 182, 182, 0.20);
+
+    /* Gray Scale */
+    --color-gray-100: #E1E1E1;
+    --color-gray-200: #C8C8C8;
+    --color-gray-300: #ACACAC;
+    --color-gray-400: #919191;
+    --color-gray-500: #6E6E6E;
+    --color-gray-600: #404040;
+    --color-gray-800: #282828; /* Added as per refactoring spec */
+    --color-gray-900: #212121;
+    --color-gray-950: #141414;
+
+    /* Semantic Colors */
+    --color-background: var(--color-off-black);
+    --color-surface: rgba(255, 255, 255, 0.05);
+    --color-surface-variant: rgba(255, 255, 255, 0.08); /* For slightly different surfaces like quoted posts */
+    --color-border: var(--color-transparent-white);
+    --color-text-primary: var(--color-white);
+    --color-text-secondary: var(--color-gray-300);
+    --color-accent: var(--color-magenta);
+
+    /* Status Colors */
+    --color-success: #10b981;
+    --color-success-subtle: rgba(16, 185, 129, 0.1); /* For hover/backgrounds related to success */
+    --color-error: #ef4444;
+    --color-error-subtle: rgba(239, 68, 68, 0.1);   /* For hover/backgrounds related to error */
+    --color-warning: #f59e0b;
+    --color-info: #3b82f6;
+
+    /* Interactive States */
+    --color-hover: rgba(255, 255, 255, 0.1);
+    --color-active: rgba(255, 255, 255, 0.2);
+    --color-disabled: rgba(255, 255, 255, 0.3);
+}

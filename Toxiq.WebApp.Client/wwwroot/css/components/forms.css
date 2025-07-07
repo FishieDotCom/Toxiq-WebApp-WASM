@@ -1,0 +1,33 @@
+.form-input {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    /* Requires --spacing-sm to be defined */
+    padding: var(--spacing-sm);
+    color: var(--color-text-primary);
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    transition: border-color 0.2s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.form-input::placeholder {
+    color: var(--color-text-secondary);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-input--comment {
+    background: transparent;
+    border: none;
+    border-radius: 15px;
+    /* Requires --spacing-sm to be defined */
+    padding: var(--spacing-sm);
+}

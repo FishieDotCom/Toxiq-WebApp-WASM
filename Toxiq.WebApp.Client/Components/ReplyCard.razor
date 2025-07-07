@@ -5,24 +5,24 @@
 @using Toxiq.WebApp.Client.Services.Feed
 @inject IFeedService FeedService
 
-<div class="reply-card @GetReplyTypeClass()">
-    <div class="reply-content">
+<div class="card card--reply @GetReplyCardModifiers()">
+    <div class="card__content">
         <!-- Reply Header -->
-        <div class="reply-header">
-            <div class="reply-author" @onclick="HandleProfileClick" @onclick:stopPropagation="true">
-                <span class="reply-author-name">@Post.Name</span>
-                <span class="reply-author-username">@@@Post.UserName</span>
+        <div class="card__header">
+            <div class="card__author" @onclick="HandleProfileClick" @onclick:stopPropagation="true">
+                <span class="card__author-name text-caption">@Post.Name</span>
+                <span class="card__author-username text-caption">@@@Post.UserName</span>
             </div>
             @if (Post.Type == PostType.Burn)
             {
-                <div class="reply-burn-indicator">🔥</div>
+                <div class="card__burn-indicator">🔥</div>
             }
         </div>
 
         <!-- Reply Text Content -->
         @if (!string.IsNullOrEmpty(Post.Content))
         {
-            <div class="reply-text" style="@GetReplyContentStyle()">
+            <div class="card__main-text text-caption @(IsFullPost ? "" : "text-caption--truncated")">
                 <FormattedText Text="@Post.Content" />
             </div>
         }
@@ -139,29 +139,25 @@
         }
     }
 
-    private string GetReplyTypeClass()
+    private string GetReplyCardModifiers()
     {
-        var baseClass = "reply-card";
+        var modifiers = new List<string>();
 
-        // Add specific classes based on reply type and content
         if (Post.ReplyType == ReplyType.Text)
-            baseClass += " reply-echo";
+            modifiers.Add("card--reply-echo");
         else if (Post.ReplyType == ReplyType.Comment)
-            baseClass += " reply-comment";
+            modifiers.Add("card--reply-comment");
         else if (Post.ReplyType == ReplyType.Note)
-            baseClass += " reply-note";
+            modifiers.Add("card--reply-note");
 
         if (Post.Type == PostType.Burn)
-            baseClass += " reply-burn";
+            modifiers.Add("card--reply-burn");
 
-        return baseClass;
-    }
+        // Could add IsFullPost modifier if it affects card structure beyond text truncation
+        // if (IsFullPost)
+        //     modifiers.Add("card--reply-full");
 
-    private string GetReplyContentStyle()
-    {
-        var maxHeight = IsFullPost ? "none" : "80px";
-        var overflow = IsFullPost ? "visible" : "hidden";
-        return $"max-height: {maxHeight}; overflow: {overflow};";
+        return string.Join(" ", modifiers);
     }
 
     private bool IsImageMedia(MediaDto media)

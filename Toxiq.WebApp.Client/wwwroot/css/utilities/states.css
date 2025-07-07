@@ -1,0 +1,26 @@
+/* State-related utility classes or variables */
+:root {
+    --disabled-opacity: 0.6;
+}
+
+.is-disabled {
+    opacity: var(--disabled-opacity);
+    cursor: not-allowed !important; /* Ensure cursor overrides other styles */
+}
+
+/* Additional common states */
+.is-hidden {
+    display: none !important;
+}
+
+.is-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  border: 0 !important;
+  white-space: nowrap !important; /* Added for better screen reader compatibility */
+}

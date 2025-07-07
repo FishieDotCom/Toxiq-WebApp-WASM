@@ -1,0 +1,68 @@
+:root {
+    --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-size-xs: 12px;
+    --font-size-sm: 14px;
+    --font-size-base: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 20px;
+    --font-size-2xl: 24px;
+    --font-size-3xl: 32px;
+}
+
+.text-headline {
+    font-size: var(--font-size-3xl);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.text-subheadline {
+    font-size: var(--font-size-2xl);
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.text-body {
+    font-size: var(--font-size-base);
+    font-weight: 400;
+    color: var(--color-text-primary);
+    line-height: 1.5;
+}
+
+.text-caption {
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+    color: var(--color-text-secondary);
+}
+
+.text-username {
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    opacity: 0.8;
+}
+
+.text-body--truncated {
+    /* Default based on original .post-text, consider making --max-lines-truncated a variable */
+    display: -webkit-box;
+    -webkit-line-clamp: 5; /* Roughly 200px / (16px * 1.5 line-height) for base, but original was 1.2 line-height */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: calc(5 * 1.5em); /* Fallback for non-webkit, assumes line-height of 1.5 from .text-body */
+}
+
+/* Specific styles for text within a card, if different from .text-body */
+.card__main-text {
+    font-size: 17px; /* From original .post-text */
+    line-height: 1.2; /* From original .post-text */
+    color: var(--color-text-primary); /* From original .post-text */
+    white-space: normal; /* From original .post-text */
+    margin-bottom: var(--spacing-xs); /* From original .post-text */
+}
+
+.card__main-text.text-body--truncated {
+    max-height: calc(5 * 1.2em * 17px / var(--font-size-base)); /* More precise max-height for 17px font, 1.2 line-height */
+     /* Adjust line clamp if needed for 17px font and 1.2 line height */
+    -webkit-line-clamp: 4; /* Example: 4 lines * 17px * 1.2 = ~81.6px. Original was 200px. This needs careful tuning. */
+                           /* The original 200px was quite generous. */
+    max-height: 100px; /* Let's use a fixed max-height that was roughly the intent for non-FullPost */
+}
