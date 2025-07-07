@@ -23,14 +23,13 @@ namespace Toxiq.WebApp.Client
             builder.RootComponents.Add<App>("#app");
             builder.RootComponents.Add<HeadOutlet>("head::after");
 
-            //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
-
+            // Configure logging first
             builder.Logging.SetMinimumLevel(LogLevel.Information);
-            var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://toxiq.xyz/api/";
-            builder.Services.AddToxiqServices(apiBaseUrl);
-            builder.Services.AddFeedServices();
-            builder.Services.AddApiServices();
 
+            // Get API configuration
+            var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://toxiq.xyz/api/";
+
+            // Configure LocalStorage with JSON options
             builder.Services.AddBlazoredLocalStorageAsSingleton(config =>
             {
                 config.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
@@ -42,54 +41,45 @@ namespace Toxiq.WebApp.Client
                 config.JsonSerializerOptions.WriteIndented = false;
             });
 
+            // Core services (no dependencies)
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<ICacheService, MultiLayerCacheService>();
-
-            // Token Storage
             builder.Services.AddSingleton<ITokenStorage, LocalStorageTokenStorage>();
-
-            // Platform Detection
             builder.Services.AddScoped<IPlatformService, PlatformService>();
+            builder.Services.AddSingleton<IIndexedDbService, IndexedDbService>();
 
-            // API Services
+            // FIXED: HttpClient registration for WebAssembly - use the default HttpClient registration
+            builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 
-            // Authentication
-            builder.Services.AddSingleton<IAuthenticationProvider, TelegramAuthProvider>();
-            builder.Services.AddSingleton<IAuthenticationProvider, ManualAuthProvider>();
-            builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
+            // API Service registration - use scoped to match HttpClient lifetime
+            builder.Services.AddScoped<OptimizedApiService>();
+            builder.Services.AddScoped<IApiService>(provider => provider.GetRequiredService<OptimizedApiService>());
 
+            // Authentication services - make these scoped to work with scoped API service
+            builder.Services.AddScoped<IAuthenticationProvider, TelegramAuthProvider>();
+            builder.Services.AddScoped<IAuthenticationProvider, ManualAuthProvider>();
+            builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<ITelegramAuthJsInvoker, TelegramAuthJsInvoker>();
 
-            builder.Services.AddSingleton<INotificationService, NotificationService>();
-            builder.Services.AddSingleton<IIndexedDbService, IndexedDbService>();
-            builder.Services.AddSingleton<ISignalRService, SignalRService>();
+            // Notification service - make scoped to work with scoped API service
+            builder.Services.AddScoped<INotificationService, NotificationService>();
 
-            builder.Services.AddSingleton<IApiService, OptimizedApiService>();
+            // SignalR service - make scoped to work with other scoped services
+            builder.Services.AddScoped<ISignalRService, SignalRService>();
 
-
-            builder.Services.AddSingleton<ISignalRService>(provider =>
-            {
-                var authService = provider.GetRequiredService<IAuthenticationService>();
-                var notificationService = provider.GetRequiredService<INotificationService>();
-                var configuration = provider.GetRequiredService<IConfiguration>();
-                var logger = provider.GetRequiredService<ILogger<SignalRService>>();
-
-                return new SignalRService(authService, notificationService, configuration, logger);
-            });
-
-
-            // Lazy loading assemblies
+            // Additional services
             builder.Services.AddScoped<ILazyLoader, LazyLoader>();
+
+            // Add feed and API services via extension methods
+            builder.Services.AddFeedServices();
+            builder.Services.AddApiServices();
 
             // FluentUI Components
             builder.Services.AddFluentUIComponents();
 
-            // Logging
-            builder.Logging.SetMinimumLevel(LogLevel.Information);
-
             var host = builder.Build();
 
-            // Initialize notification services
+            // Initialize notification services after app is built
             try
             {
                 using var scope = host.Services.CreateScope();

@@ -63,9 +63,10 @@ namespace Toxiq.WebApp.Client.Services.Api
         public event EventHandler<NotificationDto>? NewNotificationReceived;
         public event EventHandler<int>? UnreadCountChanged;
 
-        public NotificationService(OptimizedApiService httpClient, IIndexedDbService indexedDb, IJSRuntime jsRuntime)
+        // FIXED: Constructor now accepts the concrete OptimizedApiService that it actually needs
+        public NotificationService(OptimizedApiService apiService, IIndexedDbService indexedDb, IJSRuntime jsRuntime)
         {
-            _apiService = httpClient;
+            _apiService = apiService;
             _indexedDb = indexedDb;
             _jsRuntime = jsRuntime;
         }
@@ -129,10 +130,10 @@ namespace Toxiq.WebApp.Client.Services.Api
                 var now = DateTime.UtcNow;
                 await _indexedDb.SetItemAsync(_lastReadKey, now);
 
-                // Reset unread count
+                // Reset unread count to 0
                 await _indexedDb.SetItemAsync(_unreadCountKey, 0);
 
-                // Notify components of count change
+                // Fire event for UI updates
                 UnreadCountChanged?.Invoke(this, 0);
             }
             catch (Exception ex)
@@ -142,19 +143,19 @@ namespace Toxiq.WebApp.Client.Services.Api
         }
 
         /// <summary>
-        /// Add new notification from SignalR - real-time updates
+        /// Add new notification from SignalR
         /// </summary>
         public async Task AddNewNotification(NotificationDto notification)
         {
             try
             {
-                // Get current cached notifications
+                // Get existing cached notifications
                 var cached = await GetCachedNotifications();
 
-                // Add new notification at the beginning
+                // Add new notification to the beginning
                 cached.Insert(0, notification);
 
-                // Keep only latest 100 notifications to prevent excessive memory usage
+                // Keep only latest 100 notifications in cache
                 if (cached.Count > 100)
                 {
                     cached = cached.Take(100).ToList();
@@ -163,14 +164,17 @@ namespace Toxiq.WebApp.Client.Services.Api
                 // Update cache
                 await _indexedDb.SetItemAsync(_cacheKey, cached);
 
-                // Increment unread count
+                // Update unread count
                 var currentCount = await GetUnreadCount();
                 var newCount = currentCount + 1;
                 await _indexedDb.SetItemAsync(_unreadCountKey, newCount);
 
-                // Notify components
+                // Fire events for UI updates
                 NewNotificationReceived?.Invoke(this, notification);
                 UnreadCountChanged?.Invoke(this, newCount);
+
+                // Show browser notification if supported
+                await ShowBrowserNotification(notification);
             }
             catch (Exception ex)
             {
@@ -206,8 +210,7 @@ namespace Toxiq.WebApp.Client.Services.Api
                 int unreadCount = 0;
                 if (lastReadTime.HasValue)
                 {
-                    // Count notifications newer than last read time
-                    unreadCount = notifications.Count(n => n.Date.HasValue && n.Date.Value > lastReadTime.Value);
+                    unreadCount = notifications.Count(n => n.Date > lastReadTime.Value);
                 }
                 else
                 {
@@ -221,6 +224,25 @@ namespace Toxiq.WebApp.Client.Services.Api
             catch (Exception ex)
             {
                 Console.WriteLine($"Error updating unread count: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Show browser notification for new notifications
+        /// </summary>
+        private async Task ShowBrowserNotification(NotificationDto notification)
+        {
+            try
+            {
+                await _jsRuntime.InvokeVoidAsync("toxiq.notifications.show",
+                    "Toxiq",
+                    notification.Text ?? "New notification",
+                    "/favicon.ico");
+            }
+            catch
+            {
+                // Browser notifications might not be supported or permitted
+                // Fail silently
             }
         }
     }

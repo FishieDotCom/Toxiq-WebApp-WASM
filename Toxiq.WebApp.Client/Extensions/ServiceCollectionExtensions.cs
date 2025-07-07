@@ -11,7 +11,7 @@ namespace Toxiq.WebApp.Client.Extensions
         public static IServiceCollection AddFeedServices(this IServiceCollection services)
         {
             // Register feed services
-            services.AddSingleton<IFeedService, FeedService>();
+            services.AddScoped<IFeedService, FeedService>();
 
             return services;
         }
@@ -19,7 +19,7 @@ namespace Toxiq.WebApp.Client.Extensions
         public static IServiceCollection AddApiServices(this IServiceCollection services)
         {
             // Register API services - mirrors mobile app service architecture
-            services.AddSingleton<ICommentService, CommentService>();
+            services.AddScoped<ICommentService, CommentService>();
 
             // Add other API services as needed
             // services.AddScoped<IPostService, PostService>();

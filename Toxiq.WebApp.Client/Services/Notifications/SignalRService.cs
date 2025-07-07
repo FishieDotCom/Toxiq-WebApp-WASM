@@ -81,7 +81,7 @@ namespace Toxiq.WebApp.Client.Services.Notifications
                 }
 
                 // Get API base URL from configuration
-                var apiBaseUrl = _configuration["ApiBaseUrl"] ?? "https://localhost:7145";
+                var apiBaseUrl = _configuration["ApiBaseUrl"] ?? "https://toxiq.xyz";
                 var hubUrl = $"{apiBaseUrl.TrimEnd('/')}/hubs/notification";
                 var token = await _authService.GetTokenAsync();
 
