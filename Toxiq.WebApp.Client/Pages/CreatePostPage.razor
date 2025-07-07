@@ -1,6 +1,7 @@
 ﻿@* Toxiq.WebApp.Client/Pages/CreatePost.razor *@
 @page "/create-post"
 @using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Components
 @using Toxiq.WebApp.Client.Services.Api
 @using Toxiq.WebApp.Client.Services.Authentication
 @inject IApiService ApiService
@@ -9,11 +10,9 @@
 @inject IJSRuntime JSRuntime
 
 <div class="create-post-container">
-    <div class="create-post-header">
-        <h1 class="page-title">Create Post</h1>
-        <div class="header-spacer"></div>
-    </div>
-
+<TopNavBar ShowBackButton="true" 
+           PageTitle="Create Post" >
+</TopNavBar>
     <div class="create-post-content">
         @if (IsLoading)
         {

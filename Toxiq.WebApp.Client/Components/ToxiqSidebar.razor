@@ -1,10 +1,13 @@
 ﻿@* Toxiq.WebApp.Client/Components/ToxiqSidebar.razor *@
 @using Microsoft.AspNetCore.Components
+@using Microsoft.FluentUI.AspNetCore.Components
 @using Toxiq.Mobile.Dto
 @using Toxiq.WebApp.Client.Services.Authentication
 @inject IAuthenticationService AuthService
 @inject NavigationManager Navigation
 @implements IDisposable
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+
 
 @* Only show sidebar on desktop and when authenticated *@
 @if (isAuthenticated && IsDesktop)
@@ -25,7 +28,9 @@
         <nav class="sidebar-nav">
             <div class="nav-item-wrapper">
                 <a href="/" class="nav-item @(IsCurrentPage("/") ? "active" : "")" title="Home">
-                    <span class="nav-icon">🏠</span>
+                    <span class="nav-icon">
+                        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size24.Home().WithColor("var(--white)"))" />
+                    </span>
                     @if (!isCollapsed)
                     {
                         <span class="nav-text">Home</span>
@@ -79,7 +84,9 @@
 
             <div class="nav-item-wrapper">
                 <a href="/settings" class="nav-item @(IsCurrentPage("/settings") ? "active" : "")" title="Settings">
-                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-icon">
+                        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size24.Settings().WithColor("var(--white)"))" />
+                    </span>
                     @if (!isCollapsed)
                     {
                         <span class="nav-text">Settings</span>
@@ -92,11 +99,15 @@
         <button class="create-post-btn" @onclick="NavigateToCreatePost" title="Create Post">
             @if (isCollapsed)
             {
-                <span class="create-post-icon">+</span>
+                <span class="create-post-icon">
+                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size24.Edit().WithColor("var(--black)"))" />
+                </span>
             }
             else
             {
-                <span class="create-post-text">Create Post</span>
+                <span class="create-post-text">
+                    Create Post
+                </span>
             }
         </button>
 
@@ -106,7 +117,7 @@
             <div class="sidebar-user">
                 <div class="user-info" @onclick="NavigateToProfile" title="@currentUser.UserName">
                     <div class="user-avatar">
-                        @GetUserInitials()
+                        <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Filled.Size24.Person().WithColor("var(--black)"))" />
                     </div>
                     @if (!isCollapsed)
                     {
@@ -129,7 +140,7 @@
         top: 0;
         height: 100vh;
         width: 280px;
-        background: #0a0a0a;
+        background-color: var(--black, #121212);
         border-right: 1px solid #262626;
         display: flex;
         flex-direction: column;
@@ -225,13 +236,15 @@
     .nav-item:hover {
         background-color: #262626;
         color: white;
+        fill:white;
     }
 
-    .nav-item.active {
+ @*    .nav-item.active {
+        fill: black;
         background-color: white;
         color: black;
         font-weight: 600;
-    }
+    } *@
 
     .nav-icon {
         width: 24px;
@@ -353,7 +366,7 @@
         height: 40px;
         border-radius: 50%;
         background: white;
-        color: black;
+        fill: black;
         display: flex;
         align-items: center;
         justify-content: center;

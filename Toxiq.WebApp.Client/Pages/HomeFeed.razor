@@ -7,13 +7,21 @@
 @using Toxiq.WebApp.Client.Services.JavaScript
 @inject IAuthenticationService AuthService
 @inject IFeedService FeedService
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject ITelegramAuthJsInvoker TelegramAuth
 
 
 <PageTitle>Ashi</PageTitle>
-
+<TopNavBar ShowBackButton="false">
+    <MiddleContent>
+        <div class="logo-container">
+            <Logo/>
+        </div>
+    </MiddleContent>
+</TopNavBar>
 <div class="feed-container centered-container">
     @if (isAuthenticated)
     {
@@ -135,7 +143,7 @@
 <style>
     .feed-container {
     min-height: 100vh;
-    background-color: var(--off-black);
+    background-color: var(--black);
     color: var(--white);
     }
 

@@ -8,7 +8,11 @@
     <NotFound>
         <PageTitle>Not found</PageTitle>
         <LayoutView Layout="@typeof(MainLayout)">
-            <p role="alert">Sorry, there's nothing at this address.</p>
+            <Toxiq.WebApp.Client.Components.TopNavBar ShowBackButton="true" PageTitle="404" />
+            <div class="centered-container">
+                <p role="alert">Sorry, there's nothing at this address.</p>
+            </div>
+           
         </LayoutView>
     </NotFound>
 </Router>

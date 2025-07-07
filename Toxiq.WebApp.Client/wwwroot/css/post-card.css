@@ -3,7 +3,7 @@
 /* PostCard Component Styles - Matching Mobile App */
 
 .post-card {
-    background-color: var(--off-black);
+    background-color: var(--black);
     border: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     margin: 0;
@@ -16,7 +16,8 @@
 }
 
     .post-card:hover {
-        background-color: rgba(255, 255, 255, 0.02);
+        background-color: background-color: var(--off-black);
+        ;
     }
 
 .post-content {
@@ -236,6 +237,7 @@
     }
 
 .btn-text {
+    color: var(--gray-300);
     font-weight: 600;
     font-size: 14px;
 }

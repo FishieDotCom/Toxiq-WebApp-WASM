@@ -115,18 +115,18 @@
                     @onclick:stopPropagation="true"
                     title="Comment">
                 <div class="btn-icon">
-                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Comment().WithColor("#6E6E6E"))" />
+                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Comment().WithColor("var(--gray-300)"))" />
                 </div>
                 <span class="btn-text">@(Post.CommentCount ?? 0)</span>
             </button>
 
             <!-- More Actions Button -->
-            <button class="action-btn more-btn transparent"
+            <button class="action-btn comment-btn transparent"
                     @onclick="HandleMoreActions"
                     @onclick:stopPropagation="true"
                     title="More actions">
                 <div class="btn-icon">
-                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share().WithColor("#6E6E6E"))" />
+                    <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size20.Share().WithColor("var(--gray-300)"))" />
                 </div>
             </button>
         </div>
