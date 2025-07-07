@@ -126,10 +126,10 @@
         }
 
     .comment-input-container {
-        position: fixed;
+        position: sticky;
         bottom: 0;
-        left: 0;
-        right: 0;
+        /* left: 0; */
+        /* right: 0; */
         background: #1f1f1f;
         border-top: 1px solid #333;
         padding: 10px;
@@ -219,6 +219,7 @@
         padding: 10px;
         max-height: 200px;
         overflow-y: auto;
+        margin-bottom: 10px;
     }
 
     .sticker-grid {
@@ -534,7 +535,7 @@
             <button class="media-toggle-btn" @onclick="ToggleStickerPanel">
                 @if (showStickerPanel)
                 {
-                    <text>📝</text>
+                    <FluentIcon Value="@(new Icons.Regular.Size24.Emoji().WithColor("#ffffff"))" />
                 }
                 else
                 {

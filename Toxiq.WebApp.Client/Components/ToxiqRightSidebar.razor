@@ -1,0 +1,207 @@
+﻿@* Toxiq.WebApp.Client/Components/ToxiqRightSidebar.razor *@
+@using Microsoft.AspNetCore.Components
+@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Services.Authentication
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@* Only show sidebar on desktop and when authenticated *@
+@if (isAuthenticated && IsDesktop)
+{
+    <aside class="toxiq-right-sidebar">
+        <div class="footer-section">
+            <div class="footer-title">Ashi</div>
+
+            <div class="footer-links"> 
+                <a href="https://github.com/FishieDotCom/Toxiq-Legal/blob/main/Terms%20of%20service.md" class="footer-link">Terms of Service</a>
+                <a href="https://github.com/FishieDotCom/Toxiq-Legal/blob/main/Privacy%20Policy.md" class="footer-link">Privacy Policy</a>
+                <a href="https://github.com/FishieDotCom/Toxiq-API-Docs" class="footer-link">API Documentation</a>
+                <a href="https://github.com/FishieDotCom/Toxiq-API-Docs" class="footer-link">Developers</a>
+                <a href="https://t.me/WhoIsFishie" class="footer-link">Contact</a>
+            </div>
+
+            <div class="footer-divider"></div>
+
+            <div class="footer-info">
+                © @DateTime.Now.Year Ashi<br>
+                Version @AppVersion
+            </div>
+        </div>
+    </aside>
+}
+
+<style>
+    /* Right Sidebar Container */
+    .toxiq-right-sidebar {
+        position: fixed;
+        right: 0;
+        top: 0;
+        height: 100vh;
+        width: 280px;
+        background: var(--black, #000000);
+        border-left: 1px solid var(--gray-800, #262626);
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 2rem 1.5rem;
+        z-index: 1001;
+        overflow-y: auto;
+    }
+
+    /* Footer Section Card */
+    .footer-section {
+        border: 1px solid var(--gray-800, #262626);
+        border-radius: 20px;
+        padding: 1.5rem;
+        color: var(--white, #ffffff);
+    }
+
+    /* Footer Title */
+    .footer-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--white, #ffffff);
+        margin-bottom: 1rem;
+        font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Footer Links Container */
+    .footer-links {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    /* Individual Footer Links */
+    .footer-link {
+        color: var(--gray-400, #a3a3a3);
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: color 0.2s ease;
+        padding: 0.25rem 0;
+        font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+        .footer-link:hover {
+            color: var(--white, #ffffff);
+        }
+
+    /* Divider Line */
+    .footer-divider {
+        height: 1px;
+        background: var(--gray-800, #262626);
+        margin: 1rem 0;
+    }
+
+    /* Footer Info (Copyright) */
+    .footer-info {
+        color: var(--gray-500, #737373);
+        font-size: 0.8rem;
+        line-height: 1.4;
+        font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Responsive Behavior - Hide on mobile/tablet */
+    @@media (max-width: 1024px) {
+        .toxiq-right-sidebar
+
+    {
+        display: none;
+    }
+
+    }
+
+    /* Ensure content doesn't overlap sidebar on desktop */
+    @@media (min-width: 1025px) {
+        body: has(.toxiq-right-sidebar) .main-content, body:has(.toxiq-right-sidebar) main, body:has(.toxiq-right-sidebar) .content
+
+    {
+        margin-right: 280px;
+    }
+
+    /* Alternative approach if :has() isn't supported */
+    .toxiq-right-sidebar ~ *,
+    .with-right-sidebar .main-content,
+    .with-right-sidebar main,
+    .with-right-sidebar .content {
+        margin-right: 280px;
+    }
+
+    }
+
+    /* Fallback for browsers without CSS variables */
+    @@supports not (color: var(--white)) {
+        .toxiq-right-sidebar
+
+    {
+        background: #000000;
+        border-left: 1px solid #262626;
+    }
+
+    .footer-section {
+        background: #0a0a0a;
+        border: 1px solid #262626;
+    }
+
+    .footer-title {
+        color: #ffffff;
+    }
+
+    .footer-link {
+        color: #a3a3a3;
+    }
+
+        .footer-link:hover {
+            color: #ffffff;
+        }
+
+    .footer-divider {
+        background: #262626;
+    }
+
+    .footer-info {
+        color: #737373;
+    }
+
+    }
+</style>
+
+@code {
+    private bool isAuthenticated = false;
+    private bool IsDesktop => true; // You can implement actual responsive detection if needed
+    private string AppVersion => "1.0.0"; // You can bind this to actual app version
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to authentication state changes
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+        // Check initial authentication state
+        await CheckAuthenticationState();
+    }
+
+    private async Task CheckAuthenticationState()
+    {
+        try
+        {
+            isAuthenticated = await AuthService.IsAuthenticatedAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking auth state: {ex.Message}");
+        }
+    }
+
+    private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
+    {
+        isAuthenticated = e.IsAuthenticated;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

@@ -80,7 +80,7 @@
                             <div class="profile-details">
                                 @if (Profile.Age.HasValue)
                                 {
-                                    <span class="detail-item">@Profile.Age years old</span>
+                                    <span class="detail-item">@Profile.PubDateOfBirth.ToString("yyyy")</span>
                                 }
                                 @if (Profile.Gender.HasValue)
                                 {
