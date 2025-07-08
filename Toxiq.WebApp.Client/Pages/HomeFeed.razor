@@ -22,14 +22,35 @@
 <div class="home-feed-container centered-container">
     @if (isAuthenticated)
     {
-        <!-- Feed Content with Debug CollectionView -->
+        <!-- Infinite Scroll with parent-controlled logic -->
         <div class="feed-content">
             <InfiniteScrollView TItem="BasePost"
-                                ItemsProvider="@LoadPosts"
-                                ItemTemplate="@PostItemTemplate"
+                                Items="@posts"
+                                ItemTemplate="@PostTemplate"
+                                OnLoadMore="@LoadMorePosts"
+                                IsLoading="@isLoadingMore"
+                                HasMoreItems="@canLoadMore"
                                 EmptyMessage="No posts in your feed yet. Follow some users to see their posts!"
                                 CssClass="feed-list" />
         </div>
+
+        <!-- Debug Panel -->
+        <div class="debug-panel" style="position: fixed; bottom: 80px; right: 10px; background: rgba(0,0,0,0.9); color: white; padding: 12px; font-size: 11px; border-radius: 8px; max-width: 200px; z-index: 1000;">
+            <div><strong>Feed Debug:</strong></div>
+            <div>Posts: @posts.Count</div>
+            <div>Page: @currentPage</div>
+            <div>Loading: @isLoadingMore</div>
+            <div>Can Load: @canLoadMore</div>
+            <div>Load Calls: @loadMoreCallCount</div>
+            <hr style="margin: 4px 0;" />
+            <button @onclick="DebugLoadMore" style="background: #007acc; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px;">
+                Force Load
+            </button>
+            <button @onclick="DebugRefresh" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; margin-left: 4px;">
+                Refresh
+            </button>
+        </div>
+
         <!-- Floating Action Button -->
         <button class="floating-action-button" @onclick="GoToCreate">
             ➕
@@ -50,91 +71,133 @@
 </div>
 
 @code {
-    // State management
+    // State - parent controls everything
     private List<BasePost> posts = new();
-    private GetPostDto searchQuery = new() { Page = 0, Count = 20 };
-    private bool isLoadingMore = false;
-    private bool canLoadMore = true;
     private bool isAuthenticated = false;
     private UserProfile? currentUser;
+    private bool isLoadingMore = false;
+    private bool canLoadMore = true;
+    private int currentPage = 0;
+    private int pageSize = 20;
 
     // Debug tracking
-    private string lastLoadTime = "Never";
     private int loadMoreCallCount = 0;
 
     // Template for rendering each post
-    private RenderFragment<BasePost> PostItemTemplate = (post) => __builder =>
+    private RenderFragment<BasePost> PostTemplate = (post) => __builder =>
     {
         <PostCard Post="@post" FullPost="false" />
     };
 
     protected override async Task OnInitializedAsync()
     {
-        Console.WriteLine("HomeFeed: OnInitializedAsync started");
+        Console.WriteLine("HomeFeed: Initializing");
 
         // Subscribe to authentication state changes
         AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
 
         // Check initial authentication state
         isAuthenticated = await AuthService.IsAuthenticatedAsync();
-        Console.WriteLine($"HomeFeed: Initial auth state = {isAuthenticated}");
 
         if (isAuthenticated)
         {
             currentUser = await AuthService.GetCurrentUserAsync();
-            Console.WriteLine($"HomeFeed: Current user = {currentUser?.UserName}");
             await LoadInitialFeed();
         }
     }
 
     private async Task LoadInitialFeed()
     {
-        Console.WriteLine("HomeFeed: LoadInitialFeed started");
+        Console.WriteLine("HomeFeed: Loading initial feed");
 
         try
         {
-            searchQuery.Page = 0;
-            Console.WriteLine($"HomeFeed: Calling FeedService.GetFeedAsync with page={searchQuery.Page}, count={searchQuery.Count}");
+            isLoadingMore = true;
+            currentPage = 0;
 
-            var result = await FeedService.GetFeedAsync(searchQuery);
-
-            Console.WriteLine($"HomeFeed: GetFeedAsync returned {result.Data.Count} posts");
+            var filter = new GetPostDto { Page = currentPage, Count = pageSize };
+            var result = await FeedService.GetFeedAsync(filter);
 
             posts = result.Data.ToList();
-            canLoadMore = CanLoadMore(result);
-            lastLoadTime = DateTime.Now.ToString("HH:mm:ss");
+            canLoadMore = result.Data.Count == pageSize; // Can load more if we got full page
 
-            Console.WriteLine($"HomeFeed: Initial feed loaded - {posts.Count} posts, canLoadMore={canLoadMore}");
-
-            StateHasChanged();
+            Console.WriteLine($"HomeFeed: Initial load complete - {posts.Count} posts, canLoadMore={canLoadMore}");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"HomeFeed: Error loading initial feed: {ex.Message}");
-            Console.WriteLine($"HomeFeed: Stack trace: {ex.StackTrace}");
+        }
+        finally
+        {
+            isLoadingMore = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadMorePosts()
+    {
+        loadMoreCallCount++;
+        Console.WriteLine($"HomeFeed: LoadMorePosts called (#{loadMoreCallCount})");
+
+        if (isLoadingMore)
+        {
+            Console.WriteLine("HomeFeed: Already loading, skipping");
+            return;
+        }
+
+        if (!canLoadMore)
+        {
+            Console.WriteLine("HomeFeed: No more items to load");
+            return;
+        }
+
+        try
+        {
+            isLoadingMore = true;
+            currentPage++;
+            StateHasChanged(); // Show loading state immediately
+
+            Console.WriteLine($"HomeFeed: Loading page {currentPage}");
+
+            var filter = new GetPostDto { Page = currentPage, Count = pageSize };
+            var result = await FeedService.LoadMorePostsAsync(filter);
+
+            Console.WriteLine($"HomeFeed: Got {result.Data.Count} new posts");
+
+            if (result.Data.Any())
+            {
+                posts.AddRange(result.Data);
+                canLoadMore = result.Data.Count == pageSize; // Can load more if we got full page
+            }
+            else
+            {
+                canLoadMore = false; // No more data
+            }
+
+            Console.WriteLine($"HomeFeed: LoadMore complete - total posts: {posts.Count}, canLoadMore: {canLoadMore}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"HomeFeed: Error loading more posts: {ex.Message}");
+            currentPage--; // Rollback page increment on error
+        }
+        finally
+        {
+            isLoadingMore = false;
+            StateHasChanged();
         }
     }
 
     private async Task RefreshFeed()
     {
-        Console.WriteLine("HomeFeed: RefreshFeed started");
+        Console.WriteLine("HomeFeed: Refreshing feed");
 
         try
         {
-            searchQuery.Page = 0;
-            Console.WriteLine($"HomeFeed: Refreshing with page={searchQuery.Page}");
-
-            var result = await FeedService.RefreshFeedAsync(searchQuery);
-
-            Console.WriteLine($"HomeFeed: Refresh returned {result.Data.Count} posts");
-
-            posts = result.Data.ToList();
-            canLoadMore = CanLoadMore(result);
-            lastLoadTime = DateTime.Now.ToString("HH:mm:ss");
-
-            Console.WriteLine($"HomeFeed: Refresh complete - {posts.Count} posts, canLoadMore={canLoadMore}");
-
-            StateHasChanged();
+            posts.Clear();
+            currentPage = 0;
+            canLoadMore = true;
+            await LoadInitialFeed();
         }
         catch (Exception ex)
         {
@@ -142,43 +205,17 @@
         }
     }
 
-    private async ValueTask<IEnumerable<BasePost>> LoadPosts(InfiniteScrollRequest request)
+    // Debug methods
+    private async Task DebugLoadMore()
     {
-        try
-        {
-            // Calculate page number from skip/take
-            var page = request.Skip / request.Take;
+        Console.WriteLine("HomeFeed: DEBUG - Manual LoadMore");
+        await LoadMorePosts();
+    }
 
-            var filter = new GetPostDto
-                {
-                    Page = page,
-                    Count = request.Take
-                };
-
-            Console.WriteLine($"Loading posts: page={page}, take={request.Take}, skip={request.Skip}");
-
-            SearchResultDto<BasePost> result;
-
-            if (page == 0)
-            {
-                // First page - use GetFeed or RefreshFeed
-                result = await FeedService.GetFeedAsync(filter);
-            }
-            else
-            {
-                // Subsequent pages - use LoadMore
-                result = await FeedService.LoadMorePostsAsync(filter);
-            }
-
-            Console.WriteLine($"Loaded {result.Data.Count} posts");
-
-            return result.Data;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading posts: {ex.Message}");
-            return Array.Empty<BasePost>();
-        }
+    private async Task DebugRefresh()
+    {
+        Console.WriteLine("HomeFeed: DEBUG - Manual Refresh");
+        await RefreshFeed();
     }
 
     private void GoToCreate()
@@ -189,20 +226,6 @@
     private void GoToLogin()
     {
         Navigation.NavigateTo("/login");
-    }
-
-    private bool CanLoadMore(SearchResultDto<BasePost> result)
-    {
-        var canLoad = result.Data.Count == searchQuery.Count;
-        Console.WriteLine($"HomeFeed: CanLoadMore check - got {result.Data.Count}, requested {searchQuery.Count}, result: {canLoad}");
-        return canLoad;
-    }
-
-    private string GetEmptyMessage()
-    {
-        return isAuthenticated ?
-            "No posts in your feed yet. Follow some users to see their posts!" :
-            "Sign in to see your personalized feed";
     }
 
     private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
@@ -219,6 +242,8 @@
         else if (!isAuthenticated)
         {
             posts.Clear();
+            canLoadMore = true;
+            currentPage = 0;
         }
 
         InvokeAsync(StateHasChanged);

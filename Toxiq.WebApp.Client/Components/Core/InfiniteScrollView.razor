@@ -1,17 +1,16 @@
-﻿@using Toxiq.WebApp.Client.Helper
-@typeparam TItem
+﻿@typeparam TItem
 @implements IAsyncDisposable
 @inject IJSRuntime JSRuntime
 
 <div class="infinite-scroll-view @CssClass">
-    @if (_items.Any())
+    @if (Items?.Any() == true)
     {
-        @foreach (var item in _items)
+        @foreach (var item in Items)
         {
             @ItemTemplate(item)
         }
     }
-    else if (!_loading && _enumerationCompleted)
+    else if (!IsLoading && !HasMoreItems)
     {
         @if (EmptyTemplate != null)
         {
@@ -25,7 +24,7 @@
         }
     }
 
-    @if (_loading)
+    @if (IsLoading)
     {
         @if (LoadingTemplate != null)
         {
@@ -34,130 +33,85 @@
         else
         {
             <div class="loading-section">
-                <LoadingSpinner />
+                <div class="loading-spinner"></div>
                 <span>Loading...</span>
             </div>
         }
     }
 
-    @if (!_enumerationCompleted && !_loading)
+    @if (HasMoreItems && !IsLoading)
     {
         <div @ref="_lastItemIndicator" style="height: 1px; flex-shrink: 0;"></div>
+    }
+    else if (!HasMoreItems && Items?.Any() == true)
+    {
+        <div class="end-message">
+            <p>You've reached the end!</p>
+        </div>
     }
 </div>
 
 @code {
-    // Parameters
-    [Parameter] public ItemsProviderDelegate<TItem>? ItemsProvider { get; set; }
+    // Parameters - component just displays, parent controls logic
+    [Parameter] public IEnumerable<TItem>? Items { get; set; }
     [Parameter] public RenderFragment<TItem> ItemTemplate { get; set; } = default!;
     [Parameter] public RenderFragment? LoadingTemplate { get; set; }
     [Parameter] public RenderFragment? EmptyTemplate { get; set; }
     [Parameter] public string EmptyMessage { get; set; } = "No items to display";
     [Parameter] public string CssClass { get; set; } = "";
 
-    // State
-    private List<TItem> _items = new();
-    private bool _loading = false;
-    private bool _enumerationCompleted = false;
-    private ElementReference _lastItemIndicator;
+    // State controlled by parent
+    [Parameter] public bool IsLoading { get; set; } = false;
+    [Parameter] public bool HasMoreItems { get; set; } = true;
 
-    // JavaScript interop
+    // Event for parent to handle
+    [Parameter] public EventCallback OnLoadMore { get; set; }
+
+    // Internal state
+    private ElementReference _lastItemIndicator;
     private IJSObjectReference? _module;
     private IJSObjectReference? _instance;
     private DotNetObjectReference<InfiniteScrollView<TItem>>? _componentReference;
 
-    public delegate ValueTask<IEnumerable<TItem>> ItemsProviderDelegate<T>(InfiniteScrollRequest request);
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && HasMoreItems)
         {
-            await LoadInitialItems();
+            await InitializeIntersectionObserver();
+        }
+    }
 
-            // Initialize JavaScript intersection observer
+    protected override async Task OnParametersSetAsync()
+    {
+        // Re-initialize observer when HasMoreItems changes
+        if (_instance != null && HasMoreItems)
+        {
+            await _instance.InvokeVoidAsync("onNewItems");
+        }
+    }
+
+    private async Task InitializeIntersectionObserver()
+    {
+        try
+        {
             _module = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/infinite-scroll.js");
             _componentReference = DotNetObjectReference.Create(this);
             _instance = await _module.InvokeAsync<IJSObjectReference>("initialize", _lastItemIndicator, _componentReference);
         }
-    }
-
-    private async Task LoadInitialItems()
-    {
-        if (ItemsProvider == null) return;
-
-        _loading = true;
-        StateHasChanged();
-
-        try
-        {
-            var request = new InfiniteScrollRequest(0, 20);
-            var newItems = await ItemsProvider(request);
-            _items.AddRange(newItems);
-
-            if (!newItems.Any())
-            {
-                _enumerationCompleted = true;
-            }
-        }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading initial items: {ex.Message}");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
+            Console.WriteLine($"Error initializing intersection observer: {ex.Message}");
         }
     }
 
     [JSInvokable]
-    public async Task LoadMoreItems()
+    public async Task OnIntersection()
     {
-        if (_loading || _enumerationCompleted || ItemsProvider == null)
-            return;
-
-        _loading = true;
-        StateHasChanged();
-
-        try
+        // Just notify parent - don't handle loading logic here
+        if (HasMoreItems && !IsLoading && OnLoadMore.HasDelegate)
         {
-            var request = new InfiniteScrollRequest(_items.Count, 20);
-            var newItems = await ItemsProvider(request);
-
-            var previousCount = _items.Count;
-            _items.AddRange(newItems);
-
-            if (_items.Count == previousCount || !newItems.Any())
-            {
-                _enumerationCompleted = true;
-            }
-            else if (_instance != null)
-            {
-                // Re-observe the sentinel element for next batch
-                await _instance.InvokeVoidAsync("onNewItems");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading more items: {ex.Message}");
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged();
-        }
-    }
-
-    // Public method to refresh data
-    public async Task RefreshAsync()
-    {
-        _items.Clear();
-        _enumerationCompleted = false;
-        await LoadInitialItems();
-
-        if (_instance != null)
-        {
-            await _instance.InvokeVoidAsync("onNewItems");
+            Console.WriteLine("InfiniteScrollView: Intersection detected, notifying parent");
+            await OnLoadMore.InvokeAsync();
         }
     }
 
@@ -176,6 +130,4 @@
 
         _componentReference?.Dispose();
     }
-
- 
 }

@@ -1,5 +1,5 @@
 ﻿// wwwroot/js/infinite-scroll.js
-// Simple IntersectionObserver-based infinite scroll
+// Simple IntersectionObserver - just detects intersection, doesn't handle loading
 
 export function initialize(lastItemIndicator, componentInstance) {
     const options = {
@@ -11,15 +11,16 @@ export function initialize(lastItemIndicator, componentInstance) {
     const observer = new IntersectionObserver(async (entries) => {
         for (const entry of entries) {
             if (entry.isIntersecting) {
+                console.log('Intersection detected, notifying component');
+
                 // Stop observing temporarily to prevent multiple triggers
                 observer.unobserve(lastItemIndicator);
 
                 try {
-                    await componentInstance.invokeMethodAsync("LoadMoreItems");
+                    // Just notify the component - let it handle the logic
+                    await componentInstance.invokeMethodAsync("OnIntersection");
                 } catch (error) {
-                    console.error('Error loading more items:', error);
-                    // Re-observe even if there's an error
-                    observer.observe(lastItemIndicator);
+                    console.error('Error notifying component of intersection:', error);
                 }
             }
         }
