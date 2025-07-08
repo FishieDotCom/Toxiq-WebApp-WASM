@@ -44,11 +44,6 @@ namespace Toxiq.WebApp.Client.Extensions
 
             // Add feed services
             services.AddFeedServices();
-
-            var hubUrl = $"{baseUrl.TrimEnd('/')}/hubs/notification";
-            //services.AddSignalRNotifications(hubUrl);
-
-
             return services;
         }
 

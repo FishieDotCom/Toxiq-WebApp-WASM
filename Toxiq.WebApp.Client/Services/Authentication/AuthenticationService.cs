@@ -1,6 +1,5 @@
 ﻿using Toxiq.Mobile.Dto;
 using Toxiq.WebApp.Client.Services.Caching;
-using Toxiq.WebApp.Client.Services.SignalR;
 
 namespace Toxiq.WebApp.Client.Services.Authentication
 {
@@ -26,7 +25,6 @@ namespace Toxiq.WebApp.Client.Services.Authentication
     // Toxiq.WebApp.Client/Services/Authentication/AuthenticationService.cs
     public class AuthenticationService : IAuthenticationService
     {
-        private readonly ISignalRService _signalRService;
 
         private readonly IEnumerable<IAuthenticationProvider> _providers;
         private readonly ITokenStorage _tokenStorage;
@@ -45,14 +43,13 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             ITokenStorage tokenStorage,
             ICacheService cache,
             IApiService apiService,
-            ILogger<AuthenticationService> logger, ISignalRService signalRService)
+            ILogger<AuthenticationService> logger)
         {
             _providers = providers;
             _tokenStorage = tokenStorage;
             _cache = cache;
             _apiService = apiService;
             _logger = logger;
-            _signalRService = signalRService;
         }
 
         public async ValueTask<bool> IsAuthenticatedAsync()
@@ -78,7 +75,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                 var token = await _tokenStorage.GetTokenAsync();
                 if (!string.IsNullOrEmpty(token))
                 {
-                    await _signalRService.StartAsync(token);
+                    //await _signalRService.StartAsync(token);
                     _logger.LogInformation("SignalR connection started after authentication");
                 }
             }
@@ -131,7 +128,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
 
                             try
                             {
-                                await _signalRService.StartAsync(token);
+                                //await _signalRService.StartAsync(token);
                                 _logger.LogInformation("SignalR connection started after login");
                             }
                             catch (Exception signalrEx)
@@ -258,7 +255,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
 
             try
             {
-                await _signalRService.StopAsync();
+                // await _signalRService.StopAsync();
                 _logger.LogInformation("SignalR connection stopped before logout");
             }
             catch (Exception ex)

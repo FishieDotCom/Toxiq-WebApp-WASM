@@ -40,4 +40,9 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\..\Toxiq.Mobile\Toxiq.Mobile.Dto\Toxiq.Mobile.Dto.csproj" />
 	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Domain\" />
+	  <Folder Include="Services\Chat\" />
+	</ItemGroup>
 </Project>

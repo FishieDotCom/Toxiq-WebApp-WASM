@@ -48,7 +48,7 @@
                 </a>
             </div> *@
 
-            <div class="nav-item-wrapper">
+            @* <div class="nav-item-wrapper">
                 <a href="/notifications" class="nav-item @(IsCurrentPage("/notifications") ? "active" : "")" title="Notifications">
                     <span class="nav-icon">
                         <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size24.Alert().WithColor("var(--white)"))" />
@@ -62,9 +62,9 @@
                         <span class="notification-badge">@notificationCount</span>
                     }
                 </a>
-            </div>
+            </div> *@
 
-            <div class="nav-item-wrapper">
+@*             <div class="nav-item-wrapper">
                 <a href="/messages" class="nav-item @(IsCurrentPage("/messages") ? "active" : "")" title="Messages">
                     <span class="nav-icon">
                         <FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size24.Chat().WithColor("var(--white)"))" />
@@ -74,7 +74,7 @@
                         <span class="nav-text">Messages</span>
                     }
                 </a>
-            </div> 
+            </div>  *@
 
             @* <div class="nav-item-wrapper">
                 <a href="/profile/@(currentUser?.UserName ?? "")" class="nav-item @(IsCurrentPage("/profile") ? "active" : "")" title="Profile">
