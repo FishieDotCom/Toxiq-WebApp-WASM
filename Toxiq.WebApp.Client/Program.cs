@@ -42,11 +42,12 @@ namespace Toxiq.WebApp.Client
             });
 
             // Core services (no dependencies)
-            builder.Services.AddMemoryCache();
-            builder.Services.AddSingleton<ICacheService, MultiLayerCacheService>();
-            //builder.Services.AddSingleton<ITokenStorage, LocalStorageTokenStorage>();
             builder.Services.AddScoped<IPlatformService, PlatformService>();
-            builder.Services.AddSingleton<IIndexedDbService, IndexedDbService>();
+            builder.Services.AddScoped<ILocalSecureStorage, LocalSecureStorage>();
+
+            // IndexedDB for all cached data
+            builder.Services.AddScoped<ICacheService, IndexedDbCacheService>();
+
 
             // FIXED: HttpClient registration for WebAssembly
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });

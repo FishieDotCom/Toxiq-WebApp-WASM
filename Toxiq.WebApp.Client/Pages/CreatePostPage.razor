@@ -75,9 +75,6 @@
 
         <!-- Action Buttons -->
         <div class="action-buttons">
-            <button class="btn btn-secondary" @onclick="GoBack" disabled="@IsLoading">
-                Cancel
-            </button>
             <button class="btn btn-primary" @onclick="CreatePost" disabled="@(IsLoading || !CanPost)">
                 @if (IsLoading)
                 {

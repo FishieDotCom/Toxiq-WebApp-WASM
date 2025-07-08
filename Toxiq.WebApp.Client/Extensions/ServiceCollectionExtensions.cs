@@ -72,7 +72,7 @@ namespace Toxiq.WebApp.Client.Extensions
             //services.AddScoped<IApiService, OptimizedApiService>();
 
             // Individual API services (mirrors mobile service breakdown)
-            services.AddScoped<IPostService, PostServiceImpl>();
+            services.AddScoped<IPostService, PostService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ICommentService, CommentService>();
             //services.AddScoped<INotificationService, NotificationService>();

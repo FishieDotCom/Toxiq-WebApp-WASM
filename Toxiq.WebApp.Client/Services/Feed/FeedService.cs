@@ -1,7 +1,7 @@
 ﻿// Toxiq.WebApp.Client/Services/Feed/FeedService.cs
 using Microsoft.Extensions.Caching.Memory;
 using Toxiq.Mobile.Dto;
-using Toxiq.WebApp.Client.Services.Api;
+using Toxiq.WebApp.Client.Services.Caching;
 
 namespace Toxiq.WebApp.Client.Services.Feed
 {
@@ -26,17 +26,17 @@ namespace Toxiq.WebApp.Client.Services.Feed
     {
         private readonly IApiService _apiService;
         private readonly ILogger<FeedService> _logger;
-        private readonly IMemoryCache _cache;
+        private readonly ICacheService _cache;
 
         public event EventHandler<PostInteractionEventArgs>? PostInteractionChanged;
 
         // Cache keys
         private const string FEED_CACHE_PREFIX = "feed_";
-        private const string POST_CACHE_PREFIX = "post_";
+        private const string POST_CACHE_PREFIX = "post-";
         private readonly TimeSpan _feedCacheExpiry = TimeSpan.FromMinutes(5);
         private readonly TimeSpan _postCacheExpiry = TimeSpan.FromMinutes(15);
 
-        public FeedService(IApiService apiService, ILogger<FeedService> logger, IMemoryCache cache)
+        public FeedService(IApiService apiService, ILogger<FeedService> logger, ICacheService cache)
         {
             _apiService = apiService;
             _logger = logger;
@@ -50,14 +50,6 @@ namespace Toxiq.WebApp.Client.Services.Feed
                 // Create cache key based on filter parameters
                 var cacheKey = $"{FEED_CACHE_PREFIX}{filter.Page}_{filter.Count}";
 
-                // Try to get from cache first (matching mobile app caching pattern)
-                if (_cache.TryGetValue(cacheKey, out SearchResultDto<BasePost>? cachedResult) && cachedResult != null)
-                {
-                    _logger.LogDebug("Feed cache hit for key: {CacheKey}", cacheKey);
-                    return cachedResult;
-                }
-
-                _logger.LogDebug("Feed cache miss, fetching from API");
                 var result = await _apiService.PostService.GetFeed(filter);
 
                 // Ensure ReplyType is set for all posts (matching mobile app behavior)
@@ -69,10 +61,6 @@ namespace Toxiq.WebApp.Client.Services.Feed
                     // Cache individual posts as well
                     CachePost(post);
                 }
-
-                // Cache the feed result
-                _cache.Set(cacheKey, result, _feedCacheExpiry);
-                _logger.LogDebug("Cached feed result with key: {CacheKey}", cacheKey);
 
                 return result;
             }
@@ -208,7 +196,7 @@ namespace Toxiq.WebApp.Client.Services.Feed
         public async Task InvalidatePostCache(Guid postId)
         {
             var cacheKey = $"{POST_CACHE_PREFIX}{postId}";
-            _cache.Remove(cacheKey);
+            await _cache.RemoveAsync(cacheKey);
 
             // Also clear related feed cache entries
             ClearFeedCache();
@@ -223,17 +211,19 @@ namespace Toxiq.WebApp.Client.Services.Feed
             _logger.LogDebug("Feed cache cleared (by expiry)");
         }
 
-        private void CachePost(BasePost post)
+        private async void CachePost(BasePost post)
         {
             var cacheKey = $"{POST_CACHE_PREFIX}{post.Id}";
-            _cache.Set(cacheKey, post, _postCacheExpiry);
+            await _cache.SetAsync(cacheKey, post, _postCacheExpiry);
         }
 
-        private void UpdateCachedPostSupport(Guid postId, bool? newSupportStatus)
+        private async void UpdateCachedPostSupport(Guid postId, bool? newSupportStatus)
         {
             var cacheKey = $"{POST_CACHE_PREFIX}{postId}";
 
-            if (_cache.TryGetValue(cacheKey, out BasePost? cachedPost) && cachedPost != null)
+            var cachedPost = await _cache.GetAsync<BasePost>(cacheKey);
+
+            if (cachedPost != null)
             {
                 // Update support status and count (matching mobile app's in-place update pattern)
                 var oldStatus = cachedPost.SupportStatus;
@@ -274,7 +264,7 @@ namespace Toxiq.WebApp.Client.Services.Feed
                 }
 
                 // Re-cache the updated post
-                _cache.Set(cacheKey, cachedPost, _postCacheExpiry);
+                await _cache.SetAsync(cacheKey, cachedPost, _postCacheExpiry);
 
                 _logger.LogDebug("Updated cached post {PostId} support status: {OldStatus} -> {NewStatus}",
                     postId, oldStatus, newSupportStatus);

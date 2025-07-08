@@ -68,24 +68,6 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             return _isAuthenticated;
         }
 
-        private async Task StartSignalRConnectionAsync()
-        {
-            try
-            {
-                var token = await _tokenStorage.GetTokenAsync();
-                if (!string.IsNullOrEmpty(token))
-                {
-                    //await _signalRService.StartAsync(token);
-                    _logger.LogInformation("SignalR connection started after authentication");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to start SignalR connection after authentication");
-                // Don't fail authentication if SignalR fails
-            }
-        }
-
         private async ValueTask InitializeAsync()
         {
             if (_hasInitialized) return;
@@ -94,7 +76,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             {
                 _logger.LogDebug("Initializing authentication service...");
 
-                var token = await _tokenStorage.GetTokenAsync();
+                var token = await _tokenStorage.GetAccessTokenAsync();
                 if (string.IsNullOrEmpty(token))
                 {
                     _logger.LogDebug("No stored token found");
@@ -149,7 +131,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
 
                 // If we get here, token is invalid
                 _logger.LogWarning("Stored token is invalid, removing it");
-                await _tokenStorage.RemoveTokenAsync();
+                await _tokenStorage.ClearTokensAsync();
                 _isAuthenticated = false;
             }
             catch (Exception ex)
@@ -163,14 +145,11 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             }
         }
 
-        private async ValueTask LoadCurrentUserAsync()
+        private async Task LoadCurrentUserAsync()
         {
             try
             {
-                _currentUser = await _cache.GetOrSetAsync("current_user", async () =>
-                {
-                    return await _apiService.UserService.GetMe();
-                }, TimeSpan.FromMinutes(30));
+                _currentUser = await _apiService.UserService.GetMe();
             }
             catch (Exception ex)
             {
@@ -264,9 +243,9 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             }
 
             // Clear local state
-            await _tokenStorage.RemoveTokenAsync();
-            await _cache.RemovePatternAsync("user_*");
-            await _cache.RemovePatternAsync("api_*");
+            await _tokenStorage.ClearTokensAsync();
+            await _cache.RemoveByPatternAsync("user_*");
+            await _cache.RemoveByPatternAsync("api_*");
 
             _currentUser = null;
             _isAuthenticated = false;
@@ -311,8 +290,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                 await _cache.SetAsync("current_user", _currentUser, TimeSpan.FromHours(1));
             }
 
-            // FIXED: Start SignalR connection after successful authentication
-            await StartSignalRConnectionAsync();
+
 
             // Notify state change
             AuthenticationStateChanged?.Invoke(this, new AuthenticationStateChangedEventArgs
@@ -325,7 +303,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         }
         public async Task<string?> GetTokenAsync()
         {
-            var token = await _tokenStorage.GetTokenAsync();
+            var token = await _tokenStorage.GetAccessTokenAsync();
             return token;
         }
     }

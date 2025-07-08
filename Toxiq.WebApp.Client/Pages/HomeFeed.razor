@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using BlazorInfiniteScroll
 @using Toxiq.Mobile.Dto
 @using Toxiq.WebApp.Client.Components
 @using Toxiq.WebApp.Client.Components.Core
@@ -24,51 +25,58 @@
     {
         <!-- Infinite Scroll with parent-controlled logic -->
         <div class="feed-content">
-            <InfiniteScrollView TItem="BasePost"
-                                Items="@posts"
-                                ItemTemplate="@PostTemplate"
-                                OnLoadMore="@LoadMorePosts"
-                                IsLoading="@isLoadingMore"
-                                HasMoreItems="@canLoadMore"
-                                EmptyMessage="No posts in your feed yet. Follow some users to see their posts!"
-                                CssClass="feed-list" />
+
+            <InfiniteScroll 
+            ObserverId="observer1"
+            ScrollBoxId="scrollBox1"
+            HasAnythingExistToLoadMore="true"
+            IsLoadingMore="@isLoadingMore"
+            IsInfiniteLoadingNeeded="canLoadMore"
+            OnEndReached="LoadMorePosts">
+                <Virtualize Items="posts" Context="item">
+                    <PostCard Post="item" FullPost="false" />
+                </Virtualize>               
+                <div id="observer1"></div>
+            </InfiniteScroll>              
         </div>
 
-        <!-- Debug Panel -->
-        <div class="debug-panel" style="position: fixed; bottom: 80px; right: 10px; background: rgba(0,0,0,0.9); color: white; padding: 12px; font-size: 11px; border-radius: 8px; max-width: 200px; z-index: 1000;">
-            <div><strong>Feed Debug:</strong></div>
-            <div>Posts: @posts.Count</div>
-            <div>Page: @currentPage</div>
-            <div>Loading: @isLoadingMore</div>
-            <div>Can Load: @canLoadMore</div>
-            <div>Load Calls: @loadMoreCallCount</div>
-            <hr style="margin: 4px 0;" />
-            <button @onclick="DebugLoadMore" style="background: #007acc; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px;">
-                Force Load
-            </button>
-            <button @onclick="DebugRefresh" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; margin-left: 4px;">
-                Refresh
-            </button>
-        </div>
-
-        <!-- Floating Action Button -->
-        <button class="floating-action-button" @onclick="GoToCreate">
-            ➕
-        </button>
+        @if (isLoadingMore)
+        {
+            <LoadingIndicator />
+        }
     }
     else
     {
         <!-- Not authenticated state -->
-        <div class="not-authenticated">
-            <div class="welcome-content">
-                <ToxiqLogo Height="64" />
-                <h1 class="welcome-title">Welcome to Toxiq</h1>
-                <p class="welcome-subtitle">Connect with your community</p>
-                <PrimaryButton ButtonText="Sign In" OnClick="@GoToLogin" />
+        <div class="auth-required">
+            <div class="auth-content">
+                <Logo Width="120" Height="120" Color="rgba(255, 255, 255, 0.3)" />
+                <h2>Welcome to Toxiq</h2>
+                <p>Where Cool Kids Hangout</p>
+                <PrimaryButton OnClick="GoToLogin" ButtonText="Login">
+
+                </PrimaryButton>
             </div>
         </div>
     }
 </div>
+
+<style>
+
+    .empty-state, .auth-required {
+        text-align: center;
+        padding: 60px 20px;
+        background-color: var(--gray-950);
+        border: 1px solid var(--transparent-white);
+        border-radius: 12px;
+        margin-top: 40px;
+    }
+
+    .auth-content {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+</style>
 
 @code {
     // State - parent controls everything
@@ -80,14 +88,7 @@
     private int currentPage = 0;
     private int pageSize = 20;
 
-    // Debug tracking
-    private int loadMoreCallCount = 0;
 
-    // Template for rendering each post
-    private RenderFragment<BasePost> PostTemplate = (post) => __builder =>
-    {
-        <PostCard Post="@post" FullPost="false" />
-    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -118,9 +119,9 @@
             var filter = new GetPostDto { Page = currentPage, Count = pageSize };
             var result = await FeedService.GetFeedAsync(filter);
 
-            posts = result.Data.ToList();
+            posts.AddRange(result.Data);
             canLoadMore = result.Data.Count == pageSize; // Can load more if we got full page
-
+            currentPage = 1; // Set current page to 1 since we just loaded the first page
             Console.WriteLine($"HomeFeed: Initial load complete - {posts.Count} posts, canLoadMore={canLoadMore}");
         }
         catch (Exception ex)
@@ -136,37 +137,34 @@
 
     private async Task LoadMorePosts()
     {
-        loadMoreCallCount++;
-        Console.WriteLine($"HomeFeed: LoadMorePosts called (#{loadMoreCallCount})");
-
         if (isLoadingMore)
         {
-            Console.WriteLine("HomeFeed: Already loading, skipping");
             return;
         }
 
         if (!canLoadMore)
         {
-            Console.WriteLine("HomeFeed: No more items to load");
             return;
         }
 
         try
         {
             isLoadingMore = true;
-            currentPage++;
             StateHasChanged(); // Show loading state immediately
 
-            Console.WriteLine($"HomeFeed: Loading page {currentPage}");
 
             var filter = new GetPostDto { Page = currentPage, Count = pageSize };
             var result = await FeedService.LoadMorePostsAsync(filter);
 
-            Console.WriteLine($"HomeFeed: Got {result.Data.Count} new posts");
 
             if (result.Data.Any())
             {
-                posts.AddRange(result.Data);
+
+                foreach (var item in result.Data)
+                {
+                    if (posts.Any(x => x.Id != item.Id))
+                        posts.Add(item);
+                }
                 canLoadMore = result.Data.Count == pageSize; // Can load more if we got full page
             }
             else
@@ -174,11 +172,12 @@
                 canLoadMore = false; // No more data
             }
 
-            Console.WriteLine($"HomeFeed: LoadMore complete - total posts: {posts.Count}, canLoadMore: {canLoadMore}");
+            currentPage++;
+
+
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"HomeFeed: Error loading more posts: {ex.Message}");
             currentPage--; // Rollback page increment on error
         }
         finally
@@ -205,18 +204,6 @@
         }
     }
 
-    // Debug methods
-    private async Task DebugLoadMore()
-    {
-        Console.WriteLine("HomeFeed: DEBUG - Manual LoadMore");
-        await LoadMorePosts();
-    }
-
-    private async Task DebugRefresh()
-    {
-        Console.WriteLine("HomeFeed: DEBUG - Manual Refresh");
-        await RefreshFeed();
-    }
 
     private void GoToCreate()
     {
