@@ -2,8 +2,8 @@
 @using Toxiq.WebApp.Client.Components.Core
 @inherits ComponentBase
 
-<CollectionView TItem="UserProfile"
-                @* ItemComponentType="typeof(UserCard)" *@
+@* <CollectionView TItem="UserProfile"
+                @* ItemComponentType="typeof(UserCard)"
                 Items="@Users"
                 OnLoadMore="@HandleLoadMore"
                 OnRefresh="@HandleRefresh"
@@ -16,7 +16,7 @@
                 ScrollThreshold="200"
                 EmptyMessage="@EmptyMessage"
                 CssClass="user-collection"
-                ItemComponentParameters="@GetUserCardParameters()" />
+                ItemComponentParameters="@GetUserCardParameters()" /> *@
 
 @code {
     // User list parameters

@@ -1,0 +1,56 @@
+﻿/* wwwroot/css/infinite-scroll.css */
+/* Simple styles for infinite scroll component */
+
+.infinite-scroll-view {
+    width: 100%;
+}
+
+.loading-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    gap: 8px;
+    color: var(--text-secondary);
+}
+
+.loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gray-600);
+    border-top: 2px solid var(--accent-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+/* Feed specific styles */
+.feed-list {
+    /* Let it grow naturally - no height constraints */
+}
+
+    .feed-list .collection-item {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+        .feed-list .collection-item:last-child {
+            border-bottom: none;
+        }

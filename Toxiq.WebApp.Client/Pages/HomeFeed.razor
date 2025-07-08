@@ -2,7 +2,6 @@
 @using Toxiq.Mobile.Dto
 @using Toxiq.WebApp.Client.Components
 @using Toxiq.WebApp.Client.Components.Core
-@using Toxiq.WebApp.Client.Components.Feed
 @using Toxiq.WebApp.Client.Services.Feed
 @using Toxiq.WebApp.Client.Services.Authentication
 @inherits ComponentBase
@@ -23,21 +22,14 @@
 <div class="home-feed-container centered-container">
     @if (isAuthenticated)
     {
-        <!-- Feed Content using Fixed CollectionView -->
+        <!-- Feed Content with Debug CollectionView -->
         <div class="feed-content">
-            <CollectionView TItem="BasePost"
-                            Items="@posts"
-                            ItemTemplate="@PostItemTemplate"
-                            OnLoadMore="@LoadMorePosts"
-                            OnRefresh="@RefreshFeed"
-                            HasMoreItems="@canLoadMore"
-                            IsLoading="@isLoadingMore"
-                            ItemHeight="@estimatedPostHeight"
-                            BufferSize="3"
-                            EmptyMessage="@GetEmptyMessage()"
-                            CssClass="feed-collection" />
+            <InfiniteScrollView TItem="BasePost"
+                                ItemsProvider="@LoadPosts"
+                                ItemTemplate="@PostItemTemplate"
+                                EmptyMessage="No posts in your feed yet. Follow some users to see their posts!"
+                                CssClass="feed-list" />
         </div>
-
         <!-- Floating Action Button -->
         <button class="floating-action-button" @onclick="GoToCreate">
             ➕
@@ -65,7 +57,10 @@
     private bool canLoadMore = true;
     private bool isAuthenticated = false;
     private UserProfile? currentUser;
-    private int estimatedPostHeight = 200;
+
+    // Debug tracking
+    private string lastLoadTime = "Never";
+    private int loadMoreCallCount = 0;
 
     // Template for rendering each post
     private RenderFragment<BasePost> PostItemTemplate = (post) => __builder =>
@@ -75,92 +70,114 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Console.WriteLine("HomeFeed: OnInitializedAsync started");
+
         // Subscribe to authentication state changes
         AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
 
         // Check initial authentication state
         isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        Console.WriteLine($"HomeFeed: Initial auth state = {isAuthenticated}");
 
         if (isAuthenticated)
         {
             currentUser = await AuthService.GetCurrentUserAsync();
+            Console.WriteLine($"HomeFeed: Current user = {currentUser?.UserName}");
             await LoadInitialFeed();
         }
     }
 
     private async Task LoadInitialFeed()
     {
+        Console.WriteLine("HomeFeed: LoadInitialFeed started");
+
         try
         {
             searchQuery.Page = 0;
+            Console.WriteLine($"HomeFeed: Calling FeedService.GetFeedAsync with page={searchQuery.Page}, count={searchQuery.Count}");
+
             var result = await FeedService.GetFeedAsync(searchQuery);
+
+            Console.WriteLine($"HomeFeed: GetFeedAsync returned {result.Data.Count} posts");
+
             posts = result.Data.ToList();
             canLoadMore = CanLoadMore(result);
+            lastLoadTime = DateTime.Now.ToString("HH:mm:ss");
 
-            // Adjust estimated height based on actual posts
-            if (posts.Any())
-            {
-                estimatedPostHeight = EstimatePostHeight(posts.First());
-            }
+            Console.WriteLine($"HomeFeed: Initial feed loaded - {posts.Count} posts, canLoadMore={canLoadMore}");
 
-            StateHasChanged(); // Ensure UI updates
+            StateHasChanged();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading initial feed: {ex.Message}");
+            Console.WriteLine($"HomeFeed: Error loading initial feed: {ex.Message}");
+            Console.WriteLine($"HomeFeed: Stack trace: {ex.StackTrace}");
         }
     }
 
     private async Task RefreshFeed()
     {
+        Console.WriteLine("HomeFeed: RefreshFeed started");
+
         try
         {
-            searchQuery.Page = 0; // Reset to first page
+            searchQuery.Page = 0;
+            Console.WriteLine($"HomeFeed: Refreshing with page={searchQuery.Page}");
+
             var result = await FeedService.RefreshFeedAsync(searchQuery);
+
+            Console.WriteLine($"HomeFeed: Refresh returned {result.Data.Count} posts");
+
             posts = result.Data.ToList();
             canLoadMore = CanLoadMore(result);
+            lastLoadTime = DateTime.Now.ToString("HH:mm:ss");
+
+            Console.WriteLine($"HomeFeed: Refresh complete - {posts.Count} posts, canLoadMore={canLoadMore}");
+
             StateHasChanged();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error refreshing feed: {ex.Message}");
+            Console.WriteLine($"HomeFeed: Error refreshing feed: {ex.Message}");
         }
     }
 
-    private async Task LoadMorePosts()
+    private async ValueTask<IEnumerable<BasePost>> LoadPosts(InfiniteScrollRequest request)
     {
-        if (isLoadingMore || !canLoadMore)
-        {
-            Console.WriteLine($"LoadMorePosts blocked: isLoadingMore={isLoadingMore}, canLoadMore={canLoadMore}");
-            return;
-        }
-
-        Console.WriteLine($"LoadMorePosts triggered: Current page={searchQuery.Page}, posts count={posts.Count}");
-
-        isLoadingMore = true;
-        StateHasChanged();
-
         try
         {
-            // Increment page for next batch
-            var result = await FeedService.LoadMorePostsAsync(searchQuery);
+            // Calculate page number from skip/take
+            var page = request.Skip / request.Take;
 
-            Console.WriteLine($"LoadMorePosts result: {result.Data.Count} new posts loaded");
+            var filter = new GetPostDto
+                {
+                    Page = page,
+                    Count = request.Take
+                };
 
-            // Add new posts to existing list
-            posts.AddRange(result.Data);
-            canLoadMore = CanLoadMore(result);
+            Console.WriteLine($"Loading posts: page={page}, take={request.Take}, skip={request.Skip}");
 
-            Console.WriteLine($"LoadMorePosts complete: Total posts={posts.Count}, canLoadMore={canLoadMore}");
+            SearchResultDto<BasePost> result;
+
+            if (page == 0)
+            {
+                // First page - use GetFeed or RefreshFeed
+                result = await FeedService.GetFeedAsync(filter);
+            }
+            else
+            {
+                // Subsequent pages - use LoadMore
+                result = await FeedService.LoadMorePostsAsync(filter);
+            }
+
+            Console.WriteLine($"Loaded {result.Data.Count} posts");
+
+            return result.Data;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error loading more posts: {ex.Message}");
-        }
-        finally
-        {
-            isLoadingMore = false;
-            StateHasChanged();
+            Console.WriteLine($"Error loading posts: {ex.Message}");
+            return Array.Empty<BasePost>();
         }
     }
 
@@ -176,9 +193,8 @@
 
     private bool CanLoadMore(SearchResultDto<BasePost> result)
     {
-        // Can load more if we got the full requested amount
         var canLoad = result.Data.Count == searchQuery.Count;
-        Console.WriteLine($"CanLoadMore: {canLoad} (got {result.Data.Count}, requested {searchQuery.Count})");
+        Console.WriteLine($"HomeFeed: CanLoadMore check - got {result.Data.Count}, requested {searchQuery.Count}, result: {canLoad}");
         return canLoad;
     }
 
@@ -189,20 +205,10 @@
             "Sign in to see your personalized feed";
     }
 
-    private int EstimatePostHeight(BasePost post)
-    {
-        // Estimate height based on post content
-        var baseHeight = 120; // Header + actions
-        var textLines = (post.Content?.Length ?? 0) / 50; // Rough estimate
-        var textHeight = Math.Max(1, textLines) * 20;
-        var mediaHeight = post.PostMedia?.Any() == true ? 200 : 0;
-        var replyHeight = post.ReplyType != ReplyType.Non ? 100 : 0;
-
-        return baseHeight + textHeight + mediaHeight + replyHeight;
-    }
-
     private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
     {
+        Console.WriteLine($"HomeFeed: Auth state changed - authenticated: {e.IsAuthenticated}");
+
         isAuthenticated = e.IsAuthenticated;
         currentUser = e.User;
 
