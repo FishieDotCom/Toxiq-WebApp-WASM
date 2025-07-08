@@ -1,6 +1,6 @@
-﻿
-@page "/"
+﻿@page "/"
 @using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Components
 @using Toxiq.WebApp.Client.Components.Core
 @using Toxiq.WebApp.Client.Components.Feed
 @using Toxiq.WebApp.Client.Services.Feed
@@ -12,50 +12,34 @@
 @inject NavigationManager Navigation
 
 <PageTitle>Toxiq - Home</PageTitle>
-
-<div class="home-feed-container">
+<TopNavBar ShowBackButton="false">
+    <MiddleContent>
+        <div class="logo-container">
+            <Logo />
+        </div>
+    </MiddleContent>
+</TopNavBar>
+<div class="home-feed-container centered-container">
     @if (isAuthenticated)
     {
-        <!-- Navigation Header -->
-        <div class="feed-header">
-            <div class="header-content">
-                <div class="header-left">
-                    <button class="nav-btn" @onclick="GoToProfile" title="Profile">
-                        @*<ProfileAvatar User="@currentUser" Size="32" />*@
-                    </button>
-                </div>
-                
-                <div class="header-center">
-                    <ToxiqLogo Height="28" />
-                </div>
-                
-                <div class="header-right">
-                    @*<NotificationBell Count="@notificationCount" />*@
-                 </div>
-            </div>
-        </div>
-
         <!-- Feed Content using CollectionView -->
         <div class="feed-content">
-            <FeedCollectionView TPost="BasePost"
-                                Posts="@posts"
-                                IsLoading="@isLoadingMore"
-                                HasMoreItems="@canLoadMore"
-                                VirtualizationEnabled="@useVirtualization"
-                                EstimatedPostHeight="@estimatedPostHeight"
-                                EmptyMessage="@GetEmptyMessage()"
-                                OnLoadMore="@LoadMorePosts"
-                                OnRefresh="@RefreshFeed"
-                                OnPostClick="@HandlePostClick"
-                                ShowFullPosts="false"
-                                ShowActions="true" />
+            <CollectionView TItem="BasePost"
+                            Items="@posts"
+                            ItemTemplate="@PostItemTemplate"
+                            OnLoadMore="@LoadMorePosts"
+                            OnRefresh="@RefreshFeed"
+                            HasMoreItems="@canLoadMore"
+                            IsLoading="@isLoadingMore"
+                            EmptyMessage="No posts in your feed yet"
+                            VirtualizationEnabled="true"
+                            CssClass="feed-collection" />
         </div>
 
-        <!-- Floating Create Post Button -->
-        <FloatingActionButton Icon="➕" 
-                              Text="Post"
-                              OnClick="@GoToCreate"
-                              CssClass="create-post-fab" />
+        <!-- Your existing floating action button -->
+        <button class="floating-action-button" @onclick="GoToCreate">
+            ➕
+        </button>
     }
     else
     {
@@ -86,6 +70,11 @@
     private bool useVirtualization = true;
     private int estimatedPostHeight = 200;
 
+    private RenderFragment<BasePost> PostItemTemplate = (post) => __builder =>
+    {
+        <PostCard Post="@post" FullPost="false"/>
+    };
+
     protected override async Task OnInitializedAsync()
     {
         // Subscribe to authentication state changes
@@ -98,19 +87,11 @@
         {
             currentUser = await AuthService.GetCurrentUserAsync();
             await LoadInitialFeed();
-            
-            // Detect if we should use virtualization based on device/performance
-            useVirtualization = await ShouldUseVirtualization();
+
         }
     }
 
-    private async Task<bool> ShouldUseVirtualization()
-    {
-        // Use virtualization for better performance on all devices
-        // Can be disabled for debugging or specific scenarios
-        return true;
-    }
-
+ 
     private async Task LoadInitialFeed()
     {
         try
@@ -173,12 +154,6 @@
             isLoadingMore = false;
             StateHasChanged();
         }
-    }
-
-    private async Task HandlePostClick(BasePost post)
-    {
-        // Navigate to post detail page (matching mobile app navigation)
-        Navigation.NavigateTo($"/posts/{post.Id}");
     }
 
     private void GoToCreate()

@@ -171,7 +171,6 @@
 @code {
     [Parameter] public BasePost Post { get; set; } = default!;
     [Parameter] public bool FullPost { get; set; } = false;
-    [Parameter] public EventCallback<BasePost> OnPostClick { get; set; }
 
     private BasePost? ReplyPost { get; set; }
     private bool? CurrentSupportStatus { get; set; }
@@ -299,7 +298,7 @@
     // Event Handlers
     private async Task HandlePostClick()
     {
-        await OnPostClick.InvokeAsync(Post);
+        Navigation.NavigateTo($"/posts/{Post.Id}");
     }
 
     private async Task HandleProfileClick()
