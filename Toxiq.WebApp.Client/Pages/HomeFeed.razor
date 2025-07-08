@@ -19,10 +19,11 @@
         </div>
     </MiddleContent>
 </TopNavBar>
+
 <div class="home-feed-container centered-container">
     @if (isAuthenticated)
     {
-        <!-- Feed Content using CollectionView -->
+        <!-- Feed Content using Fixed CollectionView -->
         <div class="feed-content">
             <CollectionView TItem="BasePost"
                             Items="@posts"
@@ -31,12 +32,13 @@
                             OnRefresh="@RefreshFeed"
                             HasMoreItems="@canLoadMore"
                             IsLoading="@isLoadingMore"
-                            EmptyMessage="No posts in your feed yet"
-                            VirtualizationEnabled="true"
+                            ItemHeight="@estimatedPostHeight"
+                            BufferSize="3"
+                            EmptyMessage="@GetEmptyMessage()"
                             CssClass="feed-collection" />
         </div>
 
-        <!-- Your existing floating action button -->
+        <!-- Floating Action Button -->
         <button class="floating-action-button" @onclick="GoToCreate">
             ➕
         </button>
@@ -49,8 +51,7 @@
                 <ToxiqLogo Height="64" />
                 <h1 class="welcome-title">Welcome to Toxiq</h1>
                 <p class="welcome-subtitle">Connect with your community</p>
-                <PrimaryButton ButtonText="Sign In" 
-                               OnClick="@GoToLogin" />
+                <PrimaryButton ButtonText="Sign In" OnClick="@GoToLogin" />
             </div>
         </div>
     }
@@ -64,34 +65,29 @@
     private bool canLoadMore = true;
     private bool isAuthenticated = false;
     private UserProfile? currentUser;
-    private int notificationCount = 0;
-
-    // Performance settings
-    private bool useVirtualization = true;
     private int estimatedPostHeight = 200;
 
+    // Template for rendering each post
     private RenderFragment<BasePost> PostItemTemplate = (post) => __builder =>
     {
-        <PostCard Post="@post" FullPost="false"/>
+        <PostCard Post="@post" FullPost="false" />
     };
 
     protected override async Task OnInitializedAsync()
     {
         // Subscribe to authentication state changes
         AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
-        
+
         // Check initial authentication state
         isAuthenticated = await AuthService.IsAuthenticatedAsync();
-        
+
         if (isAuthenticated)
         {
             currentUser = await AuthService.GetCurrentUserAsync();
             await LoadInitialFeed();
-
         }
     }
 
- 
     private async Task LoadInitialFeed()
     {
         try
@@ -100,17 +96,18 @@
             var result = await FeedService.GetFeedAsync(searchQuery);
             posts = result.Data.ToList();
             canLoadMore = CanLoadMore(result);
-            
+
             // Adjust estimated height based on actual posts
             if (posts.Any())
             {
                 estimatedPostHeight = EstimatePostHeight(posts.First());
             }
+
+            StateHasChanged(); // Ensure UI updates
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading initial feed: {ex.Message}");
-            // Could show an error toast here
         }
     }
 
@@ -118,11 +115,11 @@
     {
         try
         {
-            searchQuery.Page = 0;
+            searchQuery.Page = 0; // Reset to first page
             var result = await FeedService.RefreshFeedAsync(searchQuery);
             posts = result.Data.ToList();
             canLoadMore = CanLoadMore(result);
-            StateHasChanged(); // Force refresh after pull-to-refresh
+            StateHasChanged();
         }
         catch (Exception ex)
         {
@@ -132,18 +129,29 @@
 
     private async Task LoadMorePosts()
     {
-        if (isLoadingMore || !canLoadMore) return;
+        if (isLoadingMore || !canLoadMore)
+        {
+            Console.WriteLine($"LoadMorePosts blocked: isLoadingMore={isLoadingMore}, canLoadMore={canLoadMore}");
+            return;
+        }
+
+        Console.WriteLine($"LoadMorePosts triggered: Current page={searchQuery.Page}, posts count={posts.Count}");
 
         isLoadingMore = true;
         StateHasChanged();
 
         try
         {
+            // Increment page for next batch
             var result = await FeedService.LoadMorePostsAsync(searchQuery);
-            
-            // Add new posts to existing list (matching mobile app behavior)
+
+            Console.WriteLine($"LoadMorePosts result: {result.Data.Count} new posts loaded");
+
+            // Add new posts to existing list
             posts.AddRange(result.Data);
             canLoadMore = CanLoadMore(result);
+
+            Console.WriteLine($"LoadMorePosts complete: Total posts={posts.Count}, canLoadMore={canLoadMore}");
         }
         catch (Exception ex)
         {
@@ -166,33 +174,27 @@
         Navigation.NavigateTo("/login");
     }
 
-    private void GoToProfile()
-    {
-        if (currentUser != null)
-        {
-            Navigation.NavigateTo($"/profile/{currentUser.UserName}");
-        }
-    }
-
     private bool CanLoadMore(SearchResultDto<BasePost> result)
     {
-        // Match mobile app's pagination logic
-        return result.Data.Count == searchQuery.Count;
+        // Can load more if we got the full requested amount
+        var canLoad = result.Data.Count == searchQuery.Count;
+        Console.WriteLine($"CanLoadMore: {canLoad} (got {result.Data.Count}, requested {searchQuery.Count})");
+        return canLoad;
     }
 
     private string GetEmptyMessage()
     {
-        return isAuthenticated ? 
+        return isAuthenticated ?
             "No posts in your feed yet. Follow some users to see their posts!" :
             "Sign in to see your personalized feed";
     }
 
     private int EstimatePostHeight(BasePost post)
     {
-        // Estimate height based on post content (matching mobile app logic)
+        // Estimate height based on post content
         var baseHeight = 120; // Header + actions
-        var textLines = (post.Content?.Length ?? 0) / 50; // Rough character per line estimate
-        var textHeight = Math.Max(1, textLines) * 20; // Line height
+        var textLines = (post.Content?.Length ?? 0) / 50; // Rough estimate
+        var textHeight = Math.Max(1, textLines) * 20;
         var mediaHeight = post.PostMedia?.Any() == true ? 200 : 0;
         var replyHeight = post.ReplyType != ReplyType.Non ? 100 : 0;
 

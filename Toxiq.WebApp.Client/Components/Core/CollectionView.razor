@@ -1,18 +1,16 @@
 ﻿@using Microsoft.AspNetCore.Components.Web.Virtualization
 @typeparam TItem
 @inherits ComponentBase
-@implements IDisposable
 
 <div class="collection-view @CssClass">
-    @if (VirtualizationEnabled && Items?.Any() == true)
+    @if (Items?.Any() == true)
     {
-        <!-- Use Blazor's built-in Virtualize component -->
         <Virtualize ItemsProvider="@ItemsProvider"
                     Context="item"
                     ItemSize="@ItemHeight"
                     OverscanCount="@BufferSize">
             <ItemContent>
-                <div class="collection-item" @onclick="() => HandleItemClick(item)">
+                <div class="collection-item">
                     @ItemTemplate(item)
                 </div>
             </ItemContent>
@@ -29,10 +27,6 @@
                 </div>
             </Placeholder>
         </Virtualize>
-    }
-    else if (Items?.Any() == true)
-    {
-
     }
     else if (!IsLoading)
     {
@@ -61,7 +55,7 @@
 </div>
 
 @code {
-    // Essential parameters only
+    // Essential parameters
     [Parameter] public IEnumerable<TItem>? Items { get; set; }
     [Parameter] public RenderFragment<TItem> ItemTemplate { get; set; } = default!;
 
@@ -70,9 +64,8 @@
     [Parameter] public EventCallback OnRefresh { get; set; }
     [Parameter] public EventCallback<TItem> OnItemClick { get; set; }
 
-    // Basic settings
-    [Parameter] public bool VirtualizationEnabled { get; set; } = false; // Default to false for simplicity
-    [Parameter] public int ItemHeight { get; set; } = 100;
+    // Settings
+    [Parameter] public int ItemHeight { get; set; } = 200;
     [Parameter] public int BufferSize { get; set; } = 5;
     [Parameter] public bool HasMoreItems { get; set; } = true;
     [Parameter] public bool IsLoading { get; set; } = false;
@@ -82,20 +75,55 @@
     [Parameter] public RenderFragment? EmptyTemplate { get; set; }
     [Parameter] public RenderFragment? PlaceholderTemplate { get; set; }
     [Parameter] public string CssClass { get; set; } = "";
-    [Parameter] public string ContainerHeight { get; set; } = "100%";
 
-    // Simple fields
-    private ElementReference loadMoreRef;
-    private bool isScrollNearBottom = false;
+    // Track when we've triggered load more to prevent duplicate calls
+    private bool hasTriggeredLoadMore = false;
+    private int lastItemCount = 0;
 
-    // Virtualization provider
+    protected override void OnParametersSet()
+    {
+        // Reset load more trigger when items change (new data loaded)
+        var currentItemCount = Items?.Count() ?? 0;
+        if (currentItemCount != lastItemCount)
+        {
+            hasTriggeredLoadMore = false;
+            lastItemCount = currentItemCount;
+        }
+    }
+
+    // Virtualization provider with load more detection
     private async ValueTask<ItemsProviderResult<TItem>> ItemsProvider(ItemsProviderRequest request)
     {
-        if (Items == null) return new ItemsProviderResult<TItem>(Array.Empty<TItem>(), 0);
+        if (Items == null)
+            return new ItemsProviderResult<TItem>(Array.Empty<TItem>(), 0);
 
         var items = Items.ToList();
         var totalCount = items.Count;
 
+        // Check if we're approaching the end and need to load more
+        var endIndex = request.StartIndex + request.Count;
+        var shouldLoadMore = endIndex >= totalCount - BufferSize &&
+                           HasMoreItems &&
+                           !IsLoading &&
+                           !hasTriggeredLoadMore &&
+                           OnLoadMore.HasDelegate &&
+                           totalCount > 0; // Don't trigger on initial empty load
+
+        if (shouldLoadMore)
+        {
+            hasTriggeredLoadMore = true;
+
+            // Trigger load more in background
+            _ = Task.Run(async () =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    await OnLoadMore.InvokeAsync();
+                });
+            });
+        }
+
+        // Return the requested items
         var startIndex = Math.Max(0, Math.Min(request.StartIndex, totalCount));
         var count = Math.Min(request.Count, totalCount - startIndex);
         var requestedItems = items.Skip(startIndex).Take(count);
@@ -103,46 +131,22 @@
         return new ItemsProviderResult<TItem>(requestedItems, totalCount);
     }
 
-    // Simple scroll handler
-    // private async Task OnScroll(UIEventArgs e)
-    // {
-    //     // Simple intersection check - trigger load more when near bottom
-    //     if (HasMoreItems && !IsLoading && OnLoadMore.HasDelegate)
-    //     {
-    //         await InvokeAsync(async () =>
-    //         {
-    //             await TriggerLoadMore();
-    //         });
-    //     }
-    // }
-
-    private async Task TriggerLoadMore()
-    {
-        if (OnLoadMore.HasDelegate && !IsLoading)
-        {
-            await OnLoadMore.InvokeAsync();
-        }
-    }
-
-    private async Task HandleItemClick(TItem item)
-    {
-        if (OnItemClick.HasDelegate)
-        {
-            await OnItemClick.InvokeAsync(item);
-        }
-    }
-
-    // Simple refresh method
+    // Public method to manually refresh
     public async Task RefreshAsync()
     {
         if (OnRefresh.HasDelegate)
         {
+            hasTriggeredLoadMore = false; // Reset on refresh
             await OnRefresh.InvokeAsync();
         }
     }
 
-    public void Dispose()
+    // Public method to manually load more
+    public async Task LoadMoreAsync()
     {
-        // Nothing to dispose in this minimal version
+        if (OnLoadMore.HasDelegate && !IsLoading && HasMoreItems)
+        {
+            await OnLoadMore.InvokeAsync();
+        }
     }
 }
