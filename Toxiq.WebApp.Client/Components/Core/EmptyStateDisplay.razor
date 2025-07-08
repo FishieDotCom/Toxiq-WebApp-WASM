@@ -1,0 +1,20 @@
+﻿@inherits ComponentBase
+
+<div class="empty-state-display">
+    <div class="empty-icon">@Icon</div>
+    <h3 class="empty-title">@Title</h3>
+    <p class="empty-message">@Message</p>
+    @if (ActionTemplate != null)
+    {
+        <div class="empty-actions">
+            @ActionTemplate
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Icon { get; set; } = "📭";
+    [Parameter] public string Title { get; set; } = "Nothing here yet";
+    [Parameter] public string Message { get; set; } = "No items to display";
+    [Parameter] public RenderFragment? ActionTemplate { get; set; }
+}

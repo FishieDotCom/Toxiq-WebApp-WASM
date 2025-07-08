@@ -1,0 +1,27 @@
+﻿@inherits ComponentBase
+
+<button class="floating-action-button @CssClass"
+        @onclick="HandleClick"
+        title="@Text">
+    <span class="fab-icon">@Icon</span>
+    @if (!string.IsNullOrEmpty(Text) && ShowText)
+    {
+        <span class="fab-text">@Text</span>
+    }
+</button>
+
+@code {
+    [Parameter] public string Icon { get; set; } = "➕";
+    [Parameter] public string Text { get; set; } = "";
+    [Parameter] public bool ShowText { get; set; } = false;
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public string CssClass { get; set; } = "";
+
+    private async Task HandleClick()
+    {
+        if (OnClick.HasDelegate)
+        {
+            await OnClick.InvokeAsync();
+        }
+    }
+}

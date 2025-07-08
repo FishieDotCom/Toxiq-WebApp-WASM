@@ -1,0 +1,71 @@
+﻿@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Components.Core
+@inherits ComponentBase
+
+<CollectionView TItem="UserProfile"
+                @* ItemComponentType="typeof(UserCard)" *@
+                Items="@Users"
+                OnLoadMore="@HandleLoadMore"
+                OnRefresh="@HandleRefresh"
+                OnItemClick="@HandleUserClick"
+                IsLoading="@IsLoading"
+                HasMoreItems="@HasMoreItems"
+                VirtualizationEnabled="@VirtualizationEnabled"
+                ItemHeight="80"
+                BufferSize="10"
+                ScrollThreshold="200"
+                EmptyMessage="@EmptyMessage"
+                CssClass="user-collection"
+                ItemComponentParameters="@GetUserCardParameters()" />
+
+@code {
+    // User list parameters
+    [Parameter] public IEnumerable<UserProfile>? Users { get; set; }
+    [Parameter] public bool IsLoading { get; set; } = false;
+    [Parameter] public bool HasMoreItems { get; set; } = true;
+    [Parameter] public bool VirtualizationEnabled { get; set; } = true;
+    [Parameter] public string EmptyMessage { get; set; } = "No users found";
+
+    // Events
+    [Parameter] public EventCallback OnLoadMore { get; set; }
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<UserProfile> OnUserClick { get; set; }
+
+    // User card configuration
+    [Parameter] public bool ShowFollowButton { get; set; } = true;
+    [Parameter] public bool ShowBio { get; set; } = false;
+
+    private Dictionary<string, object> GetUserCardParameters()
+    {
+        return new Dictionary<string, object>
+        {
+            { "ShowFollowButton", ShowFollowButton },
+            { "ShowBio", ShowBio },
+            { "OnUserClick", EventCallback.Factory.Create<UserProfile>(this, HandleUserClick) }
+        };
+    }
+
+    private async Task HandleLoadMore()
+    {
+        if (OnLoadMore.HasDelegate)
+        {
+            await OnLoadMore.InvokeAsync();
+        }
+    }
+
+    private async Task HandleRefresh()
+    {
+        if (OnRefresh.HasDelegate)
+        {
+            await OnRefresh.InvokeAsync();
+        }
+    }
+
+    private async Task HandleUserClick(UserProfile user)
+    {
+        if (OnUserClick.HasDelegate)
+        {
+            await OnUserClick.InvokeAsync(user);
+        }
+    }
+}

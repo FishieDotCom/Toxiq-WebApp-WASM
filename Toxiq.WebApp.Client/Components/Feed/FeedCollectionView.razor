@@ -1,0 +1,74 @@
+﻿@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Components.Core
+@typeparam TPost where TPost : BasePost
+@inherits ComponentBase
+
+<CollectionView TItem="TPost"
+                ItemComponentType="typeof(PostCard)"
+                Items="@Posts"
+                OnLoadMore="@HandleLoadMore"
+                OnRefresh="@HandleRefresh"
+                OnItemClick="@HandlePostClick"
+                IsLoading="@IsLoading"
+                HasMoreItems="@HasMoreItems"
+                VirtualizationEnabled="@VirtualizationEnabled"
+                ItemHeight="@EstimatedPostHeight"
+                BufferSize="5"
+                ScrollThreshold="300"
+                PullToRefreshEnabled="true"
+                EmptyMessage="@EmptyMessage"
+                CssClass="feed-collection"
+                ItemComponentParameters="@GetPostCardParameters()" />
+
+@code {
+    // Feed-specific parameters
+    [Parameter] public IEnumerable<TPost>? Posts { get; set; }
+    [Parameter] public bool IsLoading { get; set; } = false;
+    [Parameter] public bool HasMoreItems { get; set; } = true;
+    [Parameter] public bool VirtualizationEnabled { get; set; } = true;
+    [Parameter] public int EstimatedPostHeight { get; set; } = 200;
+    [Parameter] public string EmptyMessage { get; set; } = "No posts in your feed yet";
+
+    // Events
+    [Parameter] public EventCallback OnLoadMore { get; set; }
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<TPost> OnPostClick { get; set; }
+
+    // Post card configuration
+    [Parameter] public bool ShowFullPosts { get; set; } = false;
+    [Parameter] public bool ShowActions { get; set; } = true;
+
+    private Dictionary<string, object> GetPostCardParameters()
+    {
+        return new Dictionary<string, object>
+        {
+            { "FullPost", ShowFullPosts },
+            { "ShowActions", ShowActions },
+            //{ "OnPostClick", EventCallback.Factory.Create<BasePost>(this, HandlePostClick) }
+        };
+    }
+
+    private async Task HandleLoadMore()
+    {
+        if (OnLoadMore.HasDelegate)
+        {
+            await OnLoadMore.InvokeAsync();
+        }
+    }
+
+    private async Task HandleRefresh()
+    {
+        if (OnRefresh.HasDelegate)
+        {
+            await OnRefresh.InvokeAsync();
+        }
+    }
+
+    private async Task HandlePostClick(TPost post)
+    {
+        if (OnPostClick.HasDelegate)
+        {
+            await OnPostClick.InvokeAsync(post);
+        }
+    }
+}

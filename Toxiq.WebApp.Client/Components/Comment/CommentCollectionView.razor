@@ -1,0 +1,73 @@
+﻿@using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Components.Core
+@inherits ComponentBase
+
+<CollectionView TItem="Comment"
+                @* ItemComponentType="typeof(CommentCard)" *@
+                Items="@Comments"
+                OnLoadMore="@HandleLoadMore"
+                OnRefresh="@HandleRefresh"
+                OnItemClick="@HandleCommentClick"
+                IsLoading="@IsLoading"
+                HasMoreItems="@HasMoreItems"
+                VirtualizationEnabled="@VirtualizationEnabled"
+                ItemHeight="120"
+                BufferSize="5"
+                ScrollThreshold="300"
+                EmptyMessage="@EmptyMessage"
+                CssClass="comment-collection"
+                ItemComponentParameters="@GetCommentCardParameters()" />
+
+@code {
+    // Comment parameters
+    [Parameter] public IEnumerable<Comment>? Comments { get; set; }
+    [Parameter] public bool IsLoading { get; set; } = false;
+    [Parameter] public bool HasMoreItems { get; set; } = true;
+    [Parameter] public bool VirtualizationEnabled { get; set; } = true;
+    [Parameter] public string EmptyMessage { get; set; } = "No comments yet";
+
+    // Events
+    [Parameter] public EventCallback OnLoadMore { get; set; }
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<Comment> OnCommentClick { get; set; }
+
+    // Comment card configuration
+    [Parameter] public bool ShowReplies { get; set; } = true;
+    [Parameter] public bool ShowActions { get; set; } = true;
+    [Parameter] public int MaxDepth { get; set; } = 3;
+
+    private Dictionary<string, object> GetCommentCardParameters()
+    {
+        return new Dictionary<string, object>
+        {
+            { "ShowReplies", ShowReplies },
+            { "ShowActions", ShowActions },
+            { "MaxDepth", MaxDepth },
+            { "OnCommentClick", EventCallback.Factory.Create<Comment>(this, HandleCommentClick) }
+        };
+    }
+
+    private async Task HandleLoadMore()
+    {
+        if (OnLoadMore.HasDelegate)
+        {
+            await OnLoadMore.InvokeAsync();
+        }
+    }
+
+    private async Task HandleRefresh()
+    {
+        if (OnRefresh.HasDelegate)
+        {
+            await OnRefresh.InvokeAsync();
+        }
+    }
+
+    private async Task HandleCommentClick(Comment comment)
+    {
+        if (OnCommentClick.HasDelegate)
+        {
+            await OnCommentClick.InvokeAsync(comment);
+        }
+    }
+}

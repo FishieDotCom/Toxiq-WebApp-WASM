@@ -1,0 +1,14 @@
+﻿@inherits ComponentBase
+
+<div class="skeleton-loader" style="height: @(Height)px;">
+    <div class="skeleton-item skeleton-avatar"></div>
+    <div class="skeleton-content">
+        <div class="skeleton-item skeleton-title"></div>
+        <div class="skeleton-item skeleton-text"></div>
+        <div class="skeleton-item skeleton-text short"></div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Height { get; set; } = 100;
+}

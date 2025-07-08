@@ -1,0 +1,438 @@
+﻿@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using System.Collections.ObjectModel
+@typeparam TItem
+@inherits ComponentBase
+@implements IDisposable
+
+<div class="collection-view @CssClass" @ref="containerRef">
+    <!-- Pull to refresh indicator -->
+    <div class="pull-refresh-indicator @(isPullRefreshing ? "active" : "")" 
+         style="transform: translateY(@(pullOffset)px);">
+        <div class="refresh-spinner @(isPullRefreshing ? "spinning" : "")"></div>
+        <span class="refresh-text">@(isPullRefreshing ? "Refreshing..." : "Pull to refresh")</span>
+    </div>
+    
+    @if (VirtualizationEnabled && Items?.Any() == true)
+    {
+        <!-- Virtualized Collection -->
+        <Virtualize ItemsProvider="@ItemsProvider" 
+                    Context="item" 
+                    ItemSize="@ItemHeight"
+                    OverscanCount="@BufferSize">
+            <ItemContent>
+                <div class="collection-item" 
+                     style="height: @(ItemHeight)px; min-height: @(ItemHeight)px;"
+                     @onclick="() => HandleItemClick(item)"
+                     @oncontextmenu="(e) => HandleItemContextMenu(e, item)"
+                     @oncontextmenu:preventDefault="true">
+                    @RenderItemComponent(item)
+                </div>
+            </ItemContent>
+            <Placeholder>
+                <div class="collection-item-placeholder" style="height: @(ItemHeight)px;">
+                    @if (PlaceholderTemplate != null)
+                    {
+                        @PlaceholderTemplate
+                    }
+                    else
+                    {
+                        <SkeletonLoader Height="@ItemHeight" />
+                    }
+                </div>
+            </Placeholder>
+        </Virtualize>
+    }
+    else if (Items?.Any() == true)
+    {
+        <!-- Non-Virtualized Collection -->
+        <div class="scroll-container" 
+             style="height: @(ContainerHeight); overflow-y: auto;"
+             @* @onscroll="OnScroll" *@
+        >
+            
+            <div class="items-container">
+                @foreach (var item in Items)
+                {
+                    <div class="collection-item" 
+                         style="@(ItemHeight > 0 ? $"height: {ItemHeight}px;" : "")"
+                         @onclick="() => HandleItemClick(item)"
+                         @oncontextmenu="(e) => HandleItemContextMenu(e, item)"
+                         @oncontextmenu:preventDefault="true">
+                        @RenderItemComponent(item)
+                    </div>
+                }
+            </div>
+            
+            <!-- Load more trigger -->
+            <div class="load-more-trigger" @ref="loadMoreTriggerRef">
+                @if (IsLoading)
+                {
+                    @if (LoadingTemplate != null)
+                    {
+                        @LoadingTemplate
+                    }
+                    else
+                    {
+                        <LoadingIndicator Message="Loading more..." />
+                    }
+                }
+            </div>
+        </div>
+    }
+    else if (!IsLoading)
+    {
+        <!-- Empty state -->
+        <div class="empty-state">
+            @if (EmptyTemplate != null)
+            {
+                @EmptyTemplate
+            }
+            else
+            {
+                <EmptyStateDisplay Message="@EmptyMessage" />
+            }
+        </div>
+    }
+    else
+    {
+        <!-- Initial loading state -->
+        <div class="initial-loading">
+            @if (LoadingTemplate != null)
+            {
+                @LoadingTemplate
+            }
+            else
+            {
+                <InitialLoadingDisplay />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    // Core Parameters
+    [Parameter] public IEnumerable<TItem>? Items { get; set; }
+    [Parameter] public Type? ItemComponentType { get; set; }
+    [Parameter] public Dictionary<string, object>? ItemComponentParameters { get; set; }
+    
+    // Events
+    [Parameter] public EventCallback OnLoadMore { get; set; }
+    [Parameter] public EventCallback OnRefresh { get; set; }
+    [Parameter] public EventCallback<TItem> OnItemClick { get; set; }
+    [Parameter] public EventCallback<CollectionItemContextMenuEventArgs<TItem>> OnItemContextMenu { get; set; }
+
+    // Virtualization settings
+    [Parameter] public bool VirtualizationEnabled { get; set; } = true;
+    [Parameter] public int ItemHeight { get; set; } = 100;
+    [Parameter] public int BufferSize { get; set; } = 5;
+
+    // Infinite scroll settings
+    [Parameter] public int ScrollThreshold { get; set; } = 300;
+    [Parameter] public bool HasMoreItems { get; set; } = true;
+    [Parameter] public bool IsLoading { get; set; } = false;
+
+    // Pull to refresh settings
+    [Parameter] public bool PullToRefreshEnabled { get; set; } = true;
+    [Parameter] public int PullThreshold { get; set; } = 80;
+
+    // UI customization
+    [Parameter] public string? EmptyMessage { get; set; } = "No items to display";
+    [Parameter] public RenderFragment? LoadingTemplate { get; set; }
+    [Parameter] public RenderFragment? EmptyTemplate { get; set; }
+    [Parameter] public RenderFragment? PlaceholderTemplate { get; set; }
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string ContainerHeight { get; set; } = "100%";
+
+    // Private fields
+    private ElementReference containerRef;
+    private ElementReference loadMoreTriggerRef;
+    private IJSObjectReference? jsModule;
+    private IJSObjectReference? intersectionObserver;
+    private DotNetObjectReference<CollectionView<TItem>>? dotNetRef;
+    
+    // Pull to refresh state
+    private bool isPullRefreshing = false;
+    private double pullOffset = 0;
+    private bool isPulling = false;
+    private double startY = 0;
+
+    // Scroll state
+    private bool isLoadingMore = false;
+    private DateTime lastScrollTime = DateTime.MinValue;
+    private const int ScrollDebounceMs = 100;
+
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/collection-view.js");
+            
+            // Setup intersection observer for infinite scroll
+            if (HasMoreItems && OnLoadMore.HasDelegate)
+            {
+                intersectionObserver = await jsModule.InvokeAsync<IJSObjectReference>(
+                    "setupInfiniteScroll", loadMoreTriggerRef, dotNetRef, nameof(LoadMoreFromJs));
+            }
+
+            // Setup pull to refresh
+            if (PullToRefreshEnabled && OnRefresh.HasDelegate)
+            {
+                await jsModule.InvokeVoidAsync("setupPullToRefresh", 
+                    containerRef, dotNetRef, nameof(HandlePullToRefreshFromJs));
+            }
+        }
+    }
+
+    // Virtualization items provider
+    private async ValueTask<ItemsProviderResult<TItem>> ItemsProvider(ItemsProviderRequest request)
+    {
+        try
+        {
+            if (Items == null)
+                return new ItemsProviderResult<TItem>(Array.Empty<TItem>(), 0);
+
+            var items = Items.ToList();
+            var totalCount = items.Count;
+            
+            // Handle infinite scroll at virtualization level
+            if (request.StartIndex + request.Count >= totalCount - BufferSize && 
+                HasMoreItems && !IsLoading && OnLoadMore.HasDelegate)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await TriggerLoadMore();
+                    });
+                });
+            }
+
+            var startIndex = Math.Max(0, Math.Min(request.StartIndex, totalCount));
+            var count = Math.Min(request.Count, totalCount - startIndex);
+            var requestedItems = items.Skip(startIndex).Take(count);
+
+            return new ItemsProviderResult<TItem>(requestedItems, totalCount);
+        }
+        catch (Exception ex)
+        {
+            // Log error and return empty result
+            Console.WriteLine($"Error in ItemsProvider: {ex.Message}");
+            return new ItemsProviderResult<TItem>(Array.Empty<TItem>(), 0);
+        }
+    }
+
+    // Render individual item component
+    private RenderFragment RenderItemComponent(TItem item) => builder =>
+    {
+        if (ItemComponentType == null)
+        {
+            builder.AddContent(0, item?.ToString() ?? "");
+            return;
+        }
+
+        builder.OpenComponent(0, ItemComponentType);
+        
+        // Add the item as the main parameter with the correct name
+        // For PostCard, use "Post" parameter; for others, use "Item" or specified parameter name
+        var mainParameterName = GetMainParameterName();
+        builder.AddAttribute(1, mainParameterName, item);
+        
+        // Add any additional parameters
+        if (ItemComponentParameters != null)
+        {
+            int sequence = 2;
+            foreach (var kvp in ItemComponentParameters)
+            {
+                builder.AddAttribute(sequence++, kvp.Key, kvp.Value);
+            }
+        }
+        
+        builder.CloseComponent();
+    };
+
+    private string GetMainParameterName()
+    {
+        // Check if a custom parameter name is specified
+        if (ItemComponentParameters?.ContainsKey("MainParameterName") == true)
+        {
+            return ItemComponentParameters["MainParameterName"]?.ToString() ?? "Item";
+        }
+
+        // Default parameter names for known component types
+        if (ItemComponentType?.Name == "PostCard")
+            return "Post";
+        else if (ItemComponentType?.Name == "UserCard")
+            return "User";
+        else if (ItemComponentType?.Name == "CommentCard")
+            return "Comment";
+        else
+            return "Item"; // Default fallback
+    }
+
+    // Event handlers
+    private async Task HandleItemClick(TItem item)
+    {
+        if (OnItemClick.HasDelegate)
+        {
+            await OnItemClick.InvokeAsync(item);
+        }
+    }
+
+    private async Task HandleItemContextMenu(MouseEventArgs e, TItem item)
+    {
+        if (OnItemContextMenu.HasDelegate)
+        {
+            var args = new CollectionItemContextMenuEventArgs<TItem>
+            {
+                Item = item,
+                ClientX = e.ClientX,
+                ClientY = e.ClientY,
+                PageX = e.PageX,
+                PageY = e.PageY
+            };
+            await OnItemContextMenu.InvokeAsync(args);
+        }
+    }
+
+    private async Task OnScroll(WheelEventArgs e)
+    {
+        // Debounce scroll events
+        lastScrollTime = DateTime.UtcNow;
+        await Task.Delay(ScrollDebounceMs);
+        
+        if (DateTime.UtcNow - lastScrollTime < TimeSpan.FromMilliseconds(ScrollDebounceMs - 10))
+            return;
+
+        // Check if we need to load more
+        if (!VirtualizationEnabled && HasMoreItems && !IsLoading && OnLoadMore.HasDelegate)
+        {
+            var scrollInfo = await jsModule!.InvokeAsync<ScrollInfo>("getScrollInfo", containerRef);
+            if (scrollInfo.ScrollTop + scrollInfo.ClientHeight >= scrollInfo.ScrollHeight - ScrollThreshold)
+            {
+                await TriggerLoadMore();
+            }
+        }
+    }
+
+    [JSInvokable]
+    public async Task LoadMoreFromJs()
+    {
+        await TriggerLoadMore();
+    }
+
+    [JSInvokable]
+    public async Task HandlePullToRefreshFromJs(double pullDistance)
+    {
+        pullOffset = Math.Min(pullDistance, PullThreshold * 1.5);
+        
+        if (pullDistance >= PullThreshold && !isPullRefreshing)
+        {
+            isPullRefreshing = true;
+            StateHasChanged();
+            
+            if (OnRefresh.HasDelegate)
+            {
+                await OnRefresh.InvokeAsync();
+            }
+            
+            // Reset after refresh
+            await Task.Delay(1000); // Allow time for refresh animation
+            isPullRefreshing = false;
+            pullOffset = 0;
+            StateHasChanged();
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task TriggerLoadMore()
+    {
+        if (isLoadingMore || !HasMoreItems) 
+            return;
+
+        isLoadingMore = true;
+        
+        try
+        {
+            if (OnLoadMore.HasDelegate)
+            {
+                await OnLoadMore.InvokeAsync();
+            }
+        }
+        finally
+        {
+            isLoadingMore = false;
+        }
+    }
+
+    // Public methods
+    public async Task ScrollToTop(bool smooth = true)
+    {
+        if (jsModule != null)
+        {
+            await jsModule.InvokeVoidAsync("scrollToTop", containerRef, smooth);
+        }
+    }
+
+    public async Task ScrollToItem(int index, bool smooth = true)
+    {
+        if (jsModule != null)
+        {
+            var scrollTop = index * ItemHeight;
+            await jsModule.InvokeVoidAsync("scrollTo", containerRef, scrollTop, smooth);
+        }
+    }
+
+    public async Task RefreshData()
+    {
+        if (OnRefresh.HasDelegate)
+        {
+            await OnRefresh.InvokeAsync();
+        }
+    }
+
+    // Cleanup
+    public async void Dispose()
+    {
+        try
+        {
+            if (intersectionObserver != null)
+            {
+                await intersectionObserver.InvokeVoidAsync("disconnect");
+                await intersectionObserver.DisposeAsync();
+            }
+
+            if (jsModule != null)
+            {
+                await jsModule.DisposeAsync();
+            }
+
+            dotNetRef?.Dispose();
+        }
+        catch (Exception)
+        {
+            // Ignore cleanup errors
+        }
+    }
+    public class CollectionItemContextMenuEventArgs<TItem>
+    {
+        public TItem Item { get; set; } = default!;
+        public double ClientX { get; set; }
+        public double ClientY { get; set; }
+        public double PageX { get; set; }
+        public double PageY { get; set; }
+    }
+
+    public class ScrollInfo
+    {
+        public double ScrollTop { get; set; }
+        public double ScrollHeight { get; set; }
+        public double ClientHeight { get; set; }
+    }
+}
+

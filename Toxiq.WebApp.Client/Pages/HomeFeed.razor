@@ -1,479 +1,151 @@
-﻿@* Toxiq.WebApp.Client/Pages/HomeFeed.razor *@
+﻿
 @page "/"
-@using Microsoft.FluentUI.AspNetCore.Components
 @using Toxiq.Mobile.Dto
-@using Toxiq.WebApp.Client.Services.Authentication
+@using Toxiq.WebApp.Client.Components.Core
+@using Toxiq.WebApp.Client.Components.Feed
 @using Toxiq.WebApp.Client.Services.Feed
-@using Toxiq.WebApp.Client.Components
-@using Toxiq.WebApp.Client.Services.JavaScript
-@inject IAuthenticationService AuthService
+@using Toxiq.WebApp.Client.Services.Authentication
+@inherits ComponentBase
+@implements IDisposable
 @inject IFeedService FeedService
-@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
-
+@inject IAuthenticationService AuthService
 @inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
-@inject ITelegramAuthJsInvoker TelegramAuth
 
+<PageTitle>Toxiq - Home</PageTitle>
 
-<PageTitle>Home / Ashi</PageTitle>
-<TopNavBar ShowBackButton="false">
-    <MiddleContent>
-        <div class="logo-container">
-            <Logo/>
-        </div>
-    </MiddleContent>
-</TopNavBar>
-<div class="feed-container centered-container">
+<div class="home-feed-container">
     @if (isAuthenticated)
     {
-        <!-- Feed Header -->
-        @* <div class="feed-header">
-            <div class="header-brand">
-                <Logo Width="32" Height="32" Color="var(--white)" />
-                <h1 class="header-title">Ashi</h1>
-            </div>
-
-            <div class="header-actions">
-                <button class="user-menu" @onclick="GoToProfile">
-                    @(currentUser?.Name ?? "User")
-                </button>
-            </div>
-        </div> *@
-
-        <!-- Feed Content -->
-        <div>
-            @if (isRefreshing)
-            {
-                <div class="refresh-indicator">
-                    <div class="loading-spinner"></div>
-                    <span>Refreshing feed...</span>
-                </div>
-            }
-
-            @if (posts.Any())
-            {
-                <div class="posts-container" @ref="postsContainer">
-                    @foreach (var post in posts)
-                    {
-                        <PostCard Post="post" OnPostClick="HandlePostClick" />
-                    }
-
-                    @if (canLoadMore)
-                    {
-                        <div class="load-more-container">
-                            <button class="btn btn-secondary load-more-btn"
-                            @onclick="LoadMorePosts"
-                            disabled="@isLoadingMore">
-                                @if (isLoadingMore)
-                                {
-                                    <div class="loading-spinner small"></div>
-                                    <span>Loading...</span>
-                                }
-                                else
-                                {
-                                    <span>Load More Posts</span>
-                                }
-                            </button>
-                        </div>
-                    }
-                    else if (posts.Any())
-                    {
-                        <div class="end-of-feed">
-                            <span>You've reached the end!</span>
-                        </div>
-                    }
-                </div>
-
-                <!-- Floating refresh button -->
-                <div class="floating-refresh">
-                    <button class="refresh-btn" @onclick="GoToCreate" disabled="@isRefreshing">
-                        <FluentIcon Value="@(new Icons.Regular.Size16.Pen().WithColor("var(--black)"))" />
+        <!-- Navigation Header -->
+        <div class="feed-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <button class="nav-btn" @onclick="GoToProfile" title="Profile">
+                        @*<ProfileAvatar User="@currentUser" Size="32" />*@
                     </button>
                 </div>
-            }
-            else if (isLoading)
-            {
-                <!-- Loading skeleton -->
-                <div class="feed-skeleton">
-                    @for (int i = 0; i < 5; i++)
-                    {
-                        <div class="skeleton-post">
-                            <div class="skeleton-header">
-                                <div class="skeleton-avatar"></div>
-                                <div class="skeleton-name"></div>
-                            </div>
-                            <div class="skeleton-content"></div>
-                            <div class="skeleton-content short"></div>
-                            <div class="skeleton-actions"></div>
-                        </div>
-                    }
+                
+                <div class="header-center">
+                    <ToxiqLogo Height="28" />
                 </div>
-            }
-            else
-            {
-                <!-- Empty state -->
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <Logo Width="80" Height="80" Color="rgba(255, 255, 255, 0.3)" />
-                    </div>
-                    <h2 class="empty-title">No posts yet</h2>
-                    <p class="empty-text">Be the first to share something!</p>
-                    <button class="btn btn-primary" @onclick="RefreshFeed">
-                        Refresh Feed
-                    </button>
-                </div>
-            }
+                
+                <div class="header-right">
+                    @*<NotificationBell Count="@notificationCount" />*@
+                 </div>
+            </div>
         </div>
+
+        <!-- Feed Content using CollectionView -->
+        <div class="feed-content">
+            <FeedCollectionView TPost="BasePost"
+                                Posts="@posts"
+                                IsLoading="@isLoadingMore"
+                                HasMoreItems="@canLoadMore"
+                                VirtualizationEnabled="@useVirtualization"
+                                EstimatedPostHeight="@estimatedPostHeight"
+                                EmptyMessage="@GetEmptyMessage()"
+                                OnLoadMore="@LoadMorePosts"
+                                OnRefresh="@RefreshFeed"
+                                OnPostClick="@HandlePostClick"
+                                ShowFullPosts="false"
+                                ShowActions="true" />
+        </div>
+
+        <!-- Floating Create Post Button -->
+        <FloatingActionButton Icon="➕" 
+                              Text="Post"
+                              OnClick="@GoToCreate"
+                              CssClass="create-post-fab" />
     }
     else
     {
-        <!-- Not authenticated - redirect to login -->
-        <div class="auth-required">
-            <div class="auth-content">
-                <Logo Width="120" Height="120" Color="rgba(255, 255, 255, 0.3)" />
-                <h2>Welcome to Toxiq</h2>
-                <p>Where Cool Kids Hangout</p>
-                <PrimaryButton OnClick="GoToLogin" ButtonText="Login">
-
-                </PrimaryButton>
+        <!-- Not authenticated state -->
+        <div class="not-authenticated">
+            <div class="welcome-content">
+                <ToxiqLogo Height="64" />
+                <h1 class="welcome-title">Welcome to Toxiq</h1>
+                <p class="welcome-subtitle">Connect with your community</p>
+                <PrimaryButton ButtonText="Sign In" 
+                               OnClick="@GoToLogin" />
             </div>
         </div>
     }
 </div>
 
-<style>
-    .feed-container {
-    min-height: 100vh;
-    background-color: var(--black);
-    color: var(--white);
-    }
-
-    .refresh-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 20px;
-    color: var(--gray-300);
-    font-size: 14px;
-    }
-
-    .loading-spinner {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--gray-600);
-    border-top: 2px solid var(--white);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    }
-
-    @@keyframes spin {
-    0%
-
-    {
-    transform: rotate(0deg);
-    }
-
-    100% {
-    transform: rotate(360deg);
-    }
-
-    }
-
-    .posts-container {
-    padding-bottom: 20px;
-    }
-
-    .load-more-container {
-    display: flex;
-    justify-content: center;
-    padding: 20px;
-    margin-top: 16px;
-    }
-
-    .load-more-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    min-width: 140px;
-    justify-content: center;
-    }
-
-    .loading-spinner.small {
-    width: 16px;
-    height: 16px;
-    border-width: 2px;
-    }
-
-    .floating-refresh {
-    position: fixed;
-    bottom: 40px;
-    right: 30px;
-    z-index: 50;
-    }
-
-    .refresh-btn {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-        background-color: GoToCreate;
-    border: none;
-    color: var(--black);
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    transition: all 0.2s ease;
-    }
-
-    .refresh-btn:hover:not(:disabled) {
-            background-color: var(--gray-200);
-    transform: scale(1.05);
-    }
-
-    .refresh-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    }
-
-    .refresh-icon.spinning {
-    animation: spin 1s linear infinite;
-    }
-
-    .end-of-feed {
-    text-align: center;
-    padding: 30px 20px;
-    color: var(--gray-400);
-    font-size: 14px;
-    }
-
-    /* Loading skeleton styles */
-    .feed-skeleton {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    }
-
-    .skeleton-post {
-    background-color: var(--gray-950);
-    border: 1px solid var(--transparent-white);
-    border-radius: 12px;
-    padding: 16px;
-    animation: pulse 1.5s ease-in-out infinite alternate;
-    }
-
-    .skeleton-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-    }
-
-    .skeleton-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: var(--gray-600);
-    }
-
-    .skeleton-name {
-    width: 120px;
-    height: 16px;
-    border-radius: 4px;
-    background-color: var(--gray-600);
-    }
-
-    .skeleton-content {
-    width: 100%;
-    height: 16px;
-    border-radius: 4px;
-    background-color: var(--gray-600);
-    margin-bottom: 8px;
-    }
-
-    .skeleton-content.short {
-    width: 60%;
-    }
-
-    .skeleton-actions {
-    width: 100%;
-    height: 40px;
-    border-radius: 8px;
-    background-color: var(--gray-600);
-    margin-top: 12px;
-    }
-
-    @@keyframes pulse {
-    0%
-
-    {
-    opacity: 0.6;
-    }
-
-    100% {
-    opacity: 1;
-    }
-
-    }
-
-    /* Empty state */
-    .empty-state, .auth-required {
-    text-align: center;
-    padding: 60px 20px;
-    background-color: var(--gray-950);
-    border: 1px solid var(--transparent-white);
-    border-radius: 12px;
-    margin-top: 40px;
-    }
-
-    .auth-content {
-    max-width: 400px;
-    margin: 0 auto;
-    }
-
-    .empty-icon {
-    margin-bottom: 20px;
-    }
-
-    .empty-title, .auth-required h2 {
-    color: var(--white);
-    font-size: 24px;
-    font-weight: 600;
-    margin-bottom: 12px;
-    }
-
-    .empty-text, .auth-required p {
-    color: var(--gray-300);
-    font-size: 16px;
-    margin-bottom: 24px;
-    }
-
-    /* Responsive */
-    @@media (max-width: 768px) {
-    .feed-header
-
-    {
-    padding: 12px 16px;
-    }
-
-    .header-title {
-    font-size: 20px;
-    }
-
-    .feed-main {
-    padding: 16px;
-    }
-
-    .floating-refresh {
-    bottom: 20px;
-    right: 20px;
-    }
-
-    .refresh-btn {
-    width: 48px;
-    height: 48px;
-    font-size: 20px;
-    }
-
-    }
-</style>
-
 @code {
-    private bool isAuthenticated = false;
-    private UserProfile currentUser;
+    // State management
     private List<BasePost> posts = new();
-    private bool isLoading = true;
-    private bool isRefreshing = false;
+    private GetPostDto searchQuery = new() { Page = 0, Count = 20 };
     private bool isLoadingMore = false;
     private bool canLoadMore = true;
-    private ElementReference postsContainer;
+    private bool isAuthenticated = false;
+    private UserProfile? currentUser;
+    private int notificationCount = 0;
 
-    private GetPostDto searchQuery = new()
-        {
-            Audience = Audience.All,
-            Count = 20,
-            Page = 0,
-            Sort = SortType.New
-        };
+    // Performance settings
+    private bool useVirtualization = true;
+    private int estimatedPostHeight = 200;
 
     protected override async Task OnInitializedAsync()
     {
         // Subscribe to authentication state changes
         AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
-
+        
         // Check initial authentication state
-        await CheckAuthenticationState();
-        await TelegramAuth.HideBackButtonAsync();
-        if (isAuthenticated)
-        {
-            await LoadInitialFeed();
-        }
-    }
-
-    private async Task CheckAuthenticationState()
-    {
         isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        
         if (isAuthenticated)
         {
             currentUser = await AuthService.GetCurrentUserAsync();
+            await LoadInitialFeed();
+            
+            // Detect if we should use virtualization based on device/performance
+            useVirtualization = await ShouldUseVirtualization();
         }
-        StateHasChanged();
+    }
+
+    private async Task<bool> ShouldUseVirtualization()
+    {
+        // Use virtualization for better performance on all devices
+        // Can be disabled for debugging or specific scenarios
+        return true;
     }
 
     private async Task LoadInitialFeed()
     {
-        isLoading = true;
-        StateHasChanged();
-
         try
         {
+            searchQuery.Page = 0;
             var result = await FeedService.GetFeedAsync(searchQuery);
             posts = result.Data.ToList();
-            searchQuery.Page++;
             canLoadMore = CanLoadMore(result);
+            
+            // Adjust estimated height based on actual posts
+            if (posts.Any())
+            {
+                estimatedPostHeight = EstimatePostHeight(posts.First());
+            }
         }
         catch (Exception ex)
         {
-            // Handle error - maybe show toast notification
+            Console.WriteLine($"Error loading initial feed: {ex.Message}");
+            // Could show an error toast here
         }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private bool CanLoadMore(SearchResultDto<BasePost> result)
-    {
-        if (result.TotalPage > searchQuery.Page && result.TotalCount != 0)
-            return true;
-        else
-            return  false;
     }
 
     private async Task RefreshFeed()
     {
-        if (isRefreshing) return;
-
-        isRefreshing = true;
-        //showFloatingRefresh = false;
-        StateHasChanged();
-
         try
         {
             searchQuery.Page = 0;
             var result = await FeedService.RefreshFeedAsync(searchQuery);
             posts = result.Data.ToList();
             canLoadMore = CanLoadMore(result);
+            StateHasChanged(); // Force refresh after pull-to-refresh
         }
         catch (Exception ex)
         {
-            // Handle error
-        }
-        finally
-        {
-            isRefreshing = false;
-            StateHasChanged();
+            Console.WriteLine($"Error refreshing feed: {ex.Message}");
         }
     }
 
@@ -487,12 +159,13 @@
         try
         {
             var result = await FeedService.LoadMorePostsAsync(searchQuery);
+            
+            // Add new posts to existing list (matching mobile app behavior)
             posts.AddRange(result.Data);
             canLoadMore = CanLoadMore(result);
         }
         catch (Exception ex)
         {
-            // Handle error - could show a toast notification
             Console.WriteLine($"Error loading more posts: {ex.Message}");
         }
         finally
@@ -504,25 +177,13 @@
 
     private async Task HandlePostClick(BasePost post)
     {
+        // Navigate to post detail page (matching mobile app navigation)
         Navigation.NavigateTo($"/posts/{post.Id}");
     }
 
     private void GoToCreate()
     {
         Navigation.NavigateTo("/create-post");
-
-    }
-    private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
-    {
-        isAuthenticated = e.IsAuthenticated;
-        currentUser = e.User;
-
-        if (isAuthenticated && !posts.Any())
-        {
-            InvokeAsync(LoadInitialFeed);
-        }
-
-        InvokeAsync(StateHasChanged);
     }
 
     private void GoToLogin()
@@ -532,7 +193,52 @@
 
     private void GoToProfile()
     {
-        Navigation.NavigateTo($"/profile/{currentUser?.UserName}");
+        if (currentUser != null)
+        {
+            Navigation.NavigateTo($"/profile/{currentUser.UserName}");
+        }
+    }
+
+    private bool CanLoadMore(SearchResultDto<BasePost> result)
+    {
+        // Match mobile app's pagination logic
+        return result.Data.Count == searchQuery.Count;
+    }
+
+    private string GetEmptyMessage()
+    {
+        return isAuthenticated ? 
+            "No posts in your feed yet. Follow some users to see their posts!" :
+            "Sign in to see your personalized feed";
+    }
+
+    private int EstimatePostHeight(BasePost post)
+    {
+        // Estimate height based on post content (matching mobile app logic)
+        var baseHeight = 120; // Header + actions
+        var textLines = (post.Content?.Length ?? 0) / 50; // Rough character per line estimate
+        var textHeight = Math.Max(1, textLines) * 20; // Line height
+        var mediaHeight = post.PostMedia?.Any() == true ? 200 : 0;
+        var replyHeight = post.ReplyType != ReplyType.Non ? 100 : 0;
+
+        return baseHeight + textHeight + mediaHeight + replyHeight;
+    }
+
+    private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
+    {
+        isAuthenticated = e.IsAuthenticated;
+        currentUser = e.User;
+
+        if (isAuthenticated && !posts.Any())
+        {
+            InvokeAsync(LoadInitialFeed);
+        }
+        else if (!isAuthenticated)
+        {
+            posts.Clear();
+        }
+
+        InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
