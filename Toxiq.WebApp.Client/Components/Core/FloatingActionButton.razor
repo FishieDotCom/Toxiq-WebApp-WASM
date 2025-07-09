@@ -1,9 +1,20 @@
-﻿@inherits ComponentBase
+﻿@using Microsoft.FluentUI.AspNetCore.Components
+@using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
+@inherits ComponentBase
 
 <button class="floating-action-button @CssClass"
         @onclick="HandleClick"
         title="@Text">
-    <span class="fab-icon">@Icon</span>
+    <span class="fab-icon">
+        @if (FluentIcon != null)
+        {
+            @FluentIcon
+        }
+        else
+        {
+            @Icon
+        }
+    </span>
     @if (!string.IsNullOrEmpty(Text) && ShowText)
     {
         <span class="fab-text">@Text</span>
@@ -11,10 +22,34 @@
 </button>
 
 @code {
+    /// <summary>
+    /// FluentUI icon to display (preferred over Icon string)
+    /// </summary>
+    [Parameter] public RenderFragment? FluentIcon { get; set; }
+
+    /// <summary>
+    /// Fallback string icon (emoji or text) - used if FluentIcon is null
+    /// </summary>
     [Parameter] public string Icon { get; set; } = "➕";
+
+    /// <summary>
+    /// Text to display next to the icon
+    /// </summary>
     [Parameter] public string Text { get; set; } = "";
+
+    /// <summary>
+    /// Whether to show the text alongside the icon
+    /// </summary>
     [Parameter] public bool ShowText { get; set; } = false;
+
+    /// <summary>
+    /// Click event handler
+    /// </summary>
     [Parameter] public EventCallback OnClick { get; set; }
+
+    /// <summary>
+    /// Additional CSS classes to apply
+    /// </summary>
     [Parameter] public string CssClass { get; set; } = "";
 
     private async Task HandleClick()
@@ -25,3 +60,247 @@
         }
     }
 }
+
+<style>
+    /* Floating Action Button - Material Design inspired */
+    .floating-action-button {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: none;
+        background-color: var(--white);
+        color: var(--off-black);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1000;
+        font-family: var(--font-family);
+        font-weight: 600;
+        font-size: 14px;
+        overflow: hidden;
+    }
+
+        .floating-action-button:hover {
+            background-color: #f5f5f5;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4), 0 3px 6px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .floating-action-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .floating-action-button:focus {
+            outline: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+
+    /* Icon container */
+    .fab-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        line-height: 1;
+    }
+
+        /* FluentUI icon adjustments */
+        .fab-icon svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+    /* Text display */
+    .fab-text {
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+        opacity: 0;
+        width: 0;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    /* Extended FAB with text */
+    .floating-action-button.extended,
+    .floating-action-button:hover .fab-text {
+        width: auto;
+        border-radius: 28px;
+        padding: 0 16px;
+        min-width: 56px;
+        width: auto;
+    }
+
+        .floating-action-button.extended .fab-text,
+        .floating-action-button:hover .fab-text {
+            opacity: 1;
+            width: auto;
+            margin-left: 8px;
+        }
+
+    /* Size variants */
+    .floating-action-button.small {
+        width: 40px;
+        height: 40px;
+        bottom: 16px;
+        right: 16px;
+    }
+
+        .floating-action-button.small .fab-icon {
+            font-size: 18px;
+        }
+
+            .floating-action-button.small .fab-icon svg {
+                width: 18px;
+                height: 18px;
+            }
+
+    .floating-action-button.large {
+        width: 72px;
+        height: 72px;
+        bottom: 32px;
+        right: 32px;
+    }
+
+        .floating-action-button.large .fab-icon {
+            font-size: 32px;
+        }
+
+            .floating-action-button.large .fab-icon svg {
+                width: 32px;
+                height: 32px;
+            }
+
+    /* Color variants */
+    .floating-action-button.primary {
+        background-color: var(--black);
+        color: var(--white);
+    }
+
+        .floating-action-button.primary:hover {
+            background-color: var(--gray-900);
+        }
+
+    .floating-action-button.secondary {
+        background-color: var(--gray-100);
+        color: var(--gray-800);
+    }
+
+        .floating-action-button.secondary:hover {
+            background-color: var(--gray-200);
+        }
+
+    .floating-action-button.accent {
+        background-color: #007acc;
+        color: white;
+    }
+
+        .floating-action-button.accent:hover {
+            background-color: #005a9e;
+        }
+
+    /* Position variants */
+    .floating-action-button.bottom-left {
+        right: auto;
+        left: 24px;
+    }
+
+    .floating-action-button.top-right {
+        bottom: auto;
+        top: 24px;
+    }
+
+    .floating-action-button.top-left {
+        bottom: auto;
+        top: 24px;
+        right: auto;
+        left: 24px;
+    }
+
+    /* Mobile responsive */
+    @@media (max-width: 768px) {
+        .floating-action-button
+
+    {
+        bottom: 88px; /* Account for mobile bottom nav */
+        right: 16px;
+        width: 48px;
+        height: 48px;
+    }
+
+    .floating-action-button.small {
+        width: 36px;
+        height: 36px;
+        bottom: 76px;
+        right: 12px;
+    }
+
+    .floating-action-button.large {
+        width: 56px;
+        height: 56px;
+        bottom: 96px;
+        right: 20px;
+    }
+
+    .floating-action-button .fab-icon {
+        font-size: 20px;
+    }
+
+        .floating-action-button .fab-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+    .floating-action-button.small .fab-icon {
+        font-size: 16px;
+    }
+
+        .floating-action-button.small .fab-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+
+    .floating-action-button.large .fab-icon {
+        font-size: 24px;
+    }
+
+        .floating-action-button.large .fab-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+    }
+
+    /* Accessibility */
+    @@media (prefers-reduced-motion: reduce) {
+        .floating-action-button, .fab-text
+
+    {
+        transition: none;
+    }
+
+    }
+
+    /* High contrast mode */
+    @@media (prefers-contrast: high) {
+        .floating-action-button
+
+    {
+        border: 2px solid var(--off-black);
+    }
+
+    .floating-action-button.primary {
+        border-color: var(--white);
+    }
+
+    }
+</style>
