@@ -36,6 +36,9 @@
             {
                 currentUser = await AuthService.GetCurrentUserAsync();
             }
+            else{
+                await AuthService.TryAutoLoginAsync();
+            }
             StateHasChanged();
         }
         catch (Exception ex)

@@ -127,12 +127,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        //AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
 
         try
         {
             // Check if we're in a Telegram WebApp
-            var platformInfo = await JSRuntime.InvokeAsync<JsonElement>("getPlatformInfo");
+            var platformInfo = await JSRuntime.InvokeAsync<JsonElement>("window.toxiqPlatform.detect");
             isTelegramWebApp = platformInfo.TryGetProperty("isTelegramMiniApp", out var prop) && prop.GetBoolean();
 
             Logger.LogInformation("Platform detection: Telegram WebApp = {IsTelegramWebApp}", isTelegramWebApp);
@@ -206,25 +206,28 @@
         StateHasChanged();
     }
 
-    private void OnAuthenticationStateChanged(bool isAuthenticated)
+    private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
     {
         InvokeAsync(() =>
         {
-            if (isAuthenticated)
+            if (e.IsAuthenticated)
             {
-                authMessage = "Authentication successful";
+                authMessage = $"Welcome, {e.User?.UserName ?? "User"}!";
             }
             else
             {
-                authMessage = "Authentication required";
+                authMessage = isTelegramWebApp
+                    ? "Telegram auto-login not available"
+                    : "Please log in to continue";
             }
 
+            isLoading = false;
             StateHasChanged();
         });
     }
 
     public void Dispose()
     {
-        //AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
     }
 }

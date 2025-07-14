@@ -23,7 +23,7 @@ namespace Toxiq.WebApp.Client.Services.Caching
     {
         private readonly ILocalStorageService _localStorage;
         private readonly ILogger<LocalSecureStorage> _logger;
-        private const string PREFIX = "toxiq_secure_";
+        private const string PREFIX = "";
 
         public LocalSecureStorage(ILocalStorageService localStorage, ILogger<LocalSecureStorage> logger)
         {

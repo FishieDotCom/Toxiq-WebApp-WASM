@@ -173,8 +173,6 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                 return new AuthenticationResult(true, UserProfile: user);
             }
 
-
-
             // Try providers that support auto-login
             foreach (var provider in _providers.Where(p => p.IsAvailable))
             {

@@ -1,6 +1,5 @@
 ﻿using Blazored.LocalStorage;
 using Microsoft.JSInterop;
-using System.Text.Json;
 using Toxiq.Mobile.Dto;
 
 namespace Toxiq.WebApp.Client.Services.Authentication
@@ -33,10 +32,9 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             try
             {
                 // Check if we're in a Telegram WebApp context
-                var result = await _jsRuntime.InvokeAsync<JsonElement>("window.toxiqPlatform.detect");
+                var result = await _jsRuntime.InvokeAsync<bool>("window.telegramAuthUtils.isTelegramWebApp");
 
-                var isTelegramWebApp = result.TryGetProperty("isTelegramMiniApp", out var isTelegramMiniAppProperty)
-                    && isTelegramMiniAppProperty.GetBoolean();
+                var isTelegramWebApp = result;
 
                 if (!isTelegramWebApp)
                 {
@@ -63,8 +61,12 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             {
                 _logger.LogInformation("Attempting Telegram auto-login...");
 
+
+
                 // Get Telegram WebApp init data
                 var initData = await _jsRuntime.InvokeAsync<string>("telegramAuthUtils.getInitData");
+
+
 
                 if (string.IsNullOrWhiteSpace(initData))
                 {
