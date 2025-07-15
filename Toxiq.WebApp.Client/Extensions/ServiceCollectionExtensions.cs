@@ -4,7 +4,6 @@ using Toxiq.WebApp.Client.Services.Api;
 using Toxiq.WebApp.Client.Services.Authentication;
 using Toxiq.WebApp.Client.Services.Core;
 using Toxiq.WebApp.Client.Services.Feed;
-using Toxiq.WebApp.Client.Services.JavaScript;
 
 namespace Toxiq.WebApp.Client.Extensions
 {
@@ -49,7 +48,6 @@ namespace Toxiq.WebApp.Client.Extensions
             services.AddScoped<IAuthenticationProvider, TelegramAuthProvider>();
             services.AddScoped<IAuthenticationProvider, ManualAuthProvider>();
             services.AddScoped<IAuthenticationService, AuthenticationService>();
-            services.AddScoped<ITelegramAuthJsInvoker, TelegramAuthJsInvoker>();
 
 
             // Token storage (LocalStorage equivalent of mobile secure storage)

@@ -94,7 +94,7 @@ namespace Toxiq.WebApp.Client.Services.Chat
     public class ChatService : IChatService, IDisposable
     {
         private readonly OptimizedApiService _apiService;
-        private readonly IIndexedDbService _indexedDb;
+        private readonly IndexedDbCacheService _indexedDb;
         private readonly ILogger<ChatService> _logger;
         private readonly ISignalRService _signalRService;
         private readonly IAuthenticationService _authService;
@@ -115,7 +115,7 @@ namespace Toxiq.WebApp.Client.Services.Chat
 
         public ChatService(
             OptimizedApiService apiService,
-            IIndexedDbService indexedDb,
+            IndexedDbCacheService indexedDb,
             ILogger<ChatService> logger,
             ISignalRService signalRService,
             IAuthenticationService authService)
@@ -206,7 +206,7 @@ namespace Toxiq.WebApp.Client.Services.Chat
 
                 // Check IndexedDB cache
                 var cacheKey = $"{ConversationCacheKeyPrefix}{conversationId}";
-                var cachedDto = await _indexedDb.GetItemAsync<Conversation>(cacheKey);
+                var cachedDto = await _indexedDb.GetAsync<Conversation>(cacheKey);
                 if (cachedDto != null)
                 {
                     var domainModel = cachedDto.ToDomain(currentUserId);
@@ -221,7 +221,7 @@ namespace Toxiq.WebApp.Client.Services.Chat
                 var conversation = conversationDto.ToDomain(currentUserId);
 
                 // Cache the result
-                await _indexedDb.SetItemAsync(cacheKey, conversationDto);
+                await _indexedDb.SetAsync(cacheKey, conversationDto);
                 _conversationCache[conversationId] = conversation;
 
                 return conversation;
@@ -247,7 +247,7 @@ namespace Toxiq.WebApp.Client.Services.Chat
                 if (page == 1)
                 {
                     var cacheKey = $"{MessagesCacheKeyPrefix}{conversationId}_page_{page}";
-                    var cachedResponse = await _indexedDb.GetItemAsync<MessageResponse>(cacheKey);
+                    var cachedResponse = await _indexedDb.GetAsync<MessageResponse>(cacheKey);
                     if (cachedResponse != null)
                     {
                         var cachedResult = cachedResponse.ToDomain(currentUserId, conversation);
@@ -279,7 +279,7 @@ namespace Toxiq.WebApp.Client.Services.Chat
                 if (page == 1)
                 {
                     var cacheKey = $"{MessagesCacheKeyPrefix}{conversationId}_page_{page}";
-                    await _indexedDb.SetItemAsync(cacheKey, responseDto);
+                    await _indexedDb.SetAsync(cacheKey, responseDto);
                     _messageCache[conversationId] = result.Messages;
                 }
 
@@ -675,7 +675,7 @@ namespace Toxiq.WebApp.Client.Services.Chat
         {
             try
             {
-                var cachedDtos = await _indexedDb.GetItemAsync<List<Conversation>>(ConversationsCacheKey);
+                var cachedDtos = await _indexedDb.GetAsync<List<Conversation>>(ConversationsCacheKey);
                 if (cachedDtos?.Any() == true)
                 {
                     var currentUserId = await GetCurrentUserIdAsync();
@@ -695,7 +695,7 @@ namespace Toxiq.WebApp.Client.Services.Chat
             try
             {
                 var dtos = conversations.ToDtoList();
-                await _indexedDb.SetItemAsync(ConversationsCacheKey, dtos);
+                await _indexedDb.SetAsync(ConversationsCacheKey, dtos);
             }
             catch (Exception ex)
             {
@@ -707,7 +707,7 @@ namespace Toxiq.WebApp.Client.Services.Chat
         {
             try
             {
-                await _indexedDb.RemoveItemAsync(ConversationsCacheKey);
+                await _indexedDb.RemoveAsync(ConversationsCacheKey);
                 _conversationCache.Clear();
             }
             catch (Exception ex)

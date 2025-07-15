@@ -55,7 +55,7 @@ namespace Toxiq.WebApp.Client.Services.Api
     public class NotificationService : INotificationService
     {
         private readonly OptimizedApiService _apiService;
-        private readonly IIndexedDbService _indexedDb;
+        private readonly IndexedDbCacheService _indexedDb;
         private readonly IJSRuntime _jsRuntime;
         private readonly string _cacheKey = "toxiq_notifications";
         private readonly string _unreadCountKey = "toxiq_unread_count";
@@ -66,7 +66,7 @@ namespace Toxiq.WebApp.Client.Services.Api
         public event EventHandler<int>? UnreadCountChanged;
 
         // FIXED: Constructor now accepts the concrete OptimizedApiService that it actually needs
-        public NotificationService(OptimizedApiService apiService, IIndexedDbService indexedDb, IJSRuntime jsRuntime, ISignalRService signalRService)
+        public NotificationService(OptimizedApiService apiService, IndexedDbCacheService indexedDb, IJSRuntime jsRuntime, ISignalRService signalRService)
         {
             _apiService = apiService;
             _indexedDb = indexedDb;
@@ -102,7 +102,7 @@ namespace Toxiq.WebApp.Client.Services.Api
                 if (response?.Data != null)
                 {
                     // Cache notifications to IndexedDB
-                    await _indexedDb.SetItemAsync(_cacheKey, response.Data);
+                    await _indexedDb.SetAsync(_cacheKey, response.Data);
 
                     // Calculate unread count based on last read time
                     await UpdateUnreadCount(response.Data);
@@ -127,7 +127,7 @@ namespace Toxiq.WebApp.Client.Services.Api
         {
             try
             {
-                var count = await _indexedDb.GetItemAsync<int>(_unreadCountKey);
+                var count = await _indexedDb.GetAsync<int>(_unreadCountKey);
                 return count;
             }
             catch
@@ -145,10 +145,10 @@ namespace Toxiq.WebApp.Client.Services.Api
             {
                 // Store current timestamp as last read time
                 var now = DateTime.UtcNow;
-                await _indexedDb.SetItemAsync(_lastReadKey, now);
+                await _indexedDb.SetAsync(_lastReadKey, now);
 
                 // Reset unread count to 0
-                await _indexedDb.SetItemAsync(_unreadCountKey, 0);
+                await _indexedDb.SetAsync(_unreadCountKey, 0);
 
                 // Fire event for UI updates
                 UnreadCountChanged?.Invoke(this, 0);
@@ -179,12 +179,12 @@ namespace Toxiq.WebApp.Client.Services.Api
                 }
 
                 // Update cache
-                await _indexedDb.SetItemAsync(_cacheKey, cached);
+                await _indexedDb.SetAsync(_cacheKey, cached);
 
                 // Update unread count
                 var currentCount = await GetUnreadCount();
                 var newCount = currentCount + 1;
-                await _indexedDb.SetItemAsync(_unreadCountKey, newCount);
+                await _indexedDb.SetAsync(_unreadCountKey, newCount);
 
                 // Fire events for UI updates
                 NewNotificationReceived?.Invoke(this, notification);
@@ -206,7 +206,7 @@ namespace Toxiq.WebApp.Client.Services.Api
         {
             try
             {
-                var cached = await _indexedDb.GetItemAsync<List<NotificationDto>>(_cacheKey);
+                var cached = await _indexedDb.GetAsync<List<NotificationDto>>(_cacheKey);
                 return cached ?? new List<NotificationDto>();
             }
             catch
@@ -222,7 +222,7 @@ namespace Toxiq.WebApp.Client.Services.Api
         {
             try
             {
-                var lastReadTime = await _indexedDb.GetItemAsync<DateTime?>(_lastReadKey);
+                var lastReadTime = await _indexedDb.GetAsync<DateTime?>(_lastReadKey);
 
                 int unreadCount = 0;
                 if (lastReadTime.HasValue)
@@ -235,7 +235,7 @@ namespace Toxiq.WebApp.Client.Services.Api
                     unreadCount = notifications.Count;
                 }
 
-                await _indexedDb.SetItemAsync(_unreadCountKey, unreadCount);
+                await _indexedDb.SetAsync(_unreadCountKey, unreadCount);
                 UnreadCountChanged?.Invoke(this, unreadCount);
             }
             catch (Exception ex)
