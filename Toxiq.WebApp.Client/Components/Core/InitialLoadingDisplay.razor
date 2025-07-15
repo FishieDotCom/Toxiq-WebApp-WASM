@@ -1,0 +1,16 @@
+﻿@inherits ComponentBase
+
+<div class="initial-loading-display">
+    <div class="loading-container">
+        <div class="pulse-loader">
+            <div class="pulse-circle"></div>
+            <div class="pulse-circle"></div>
+            <div class="pulse-circle"></div>
+        </div>
+        <p class="loading-message">@Message</p>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Message { get; set; } = "Loading content...";
+}

@@ -1,132 +1,69 @@
-﻿@* Toxiq.WebApp.Client/Pages/HomeFeed.razor *@
-@page "/"
+﻿@page "/"
+@using BlazorInfiniteScroll
 @using Microsoft.FluentUI.AspNetCore.Components
 @using Toxiq.Mobile.Dto
-@using Toxiq.WebApp.Client.Services.Authentication
-@using Toxiq.WebApp.Client.Services.Feed
 @using Toxiq.WebApp.Client.Components
-@using TelegramApps.Blazor.Services
-@inject IAuthenticationService AuthService
+@using Toxiq.WebApp.Client.Components.Core
+@using Toxiq.WebApp.Client.Services.Feed
+@using Toxiq.WebApp.Client.Services.Authentication
+@inherits ComponentBase
+@implements IDisposable
 @inject IFeedService FeedService
+@inject IAuthenticationService AuthService
+@inject NavigationManager Navigation
 @using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
 
-@inject NavigationManager Navigation
-@inject ITelegramWebAppService TelegramService
-
-
-<PageTitle>Home / Ashi</PageTitle>
+<PageTitle>Toxiq - Home</PageTitle>
 <TopNavBar ShowBackButton="false">
     <MiddleContent>
         <div class="logo-container">
-            <Logo/>
+            <Logo />
         </div>
     </MiddleContent>
+    <ExtraOptions>
+        @if(isAuthenticated){
+            <div class="header-actions">
+                <div class="user-menu" @onclick="NavigateToProfile">
+                    @(currentUser?.Name ?? currentUser?.UserName ?? "User")
+                </div>
+            </div>
+        }
+    </ExtraOptions>
 </TopNavBar>
-<div class="feed-container centered-container">
+
+<div class="home-feed-container centered-container">
     @if (isAuthenticated)
     {
-        <!-- Feed Header -->
-        @* <div class="feed-header">
-            <div class="header-brand">
-                <Logo Width="32" Height="32" Color="var(--white)" />
-                <h1 class="header-title">Ashi</h1>
-            </div>
+        <!-- Infinite Scroll with parent-controlled logic -->
+        <div class="feed-content">
 
-            <div class="header-actions">
-                <button class="user-menu" @onclick="GoToProfile">
-                    @(currentUser?.Name ?? "User")
-                </button>
-            </div>
-        </div> *@
-
-        <!-- Feed Content -->
-        <div>
-            @if (isRefreshing)
-            {
-                <div class="refresh-indicator">
-                    <div class="loading-spinner"></div>
-                    <span>Refreshing feed...</span>
-                </div>
-            }
-
-            @if (posts.Any())
-            {
-                <div class="posts-container" @ref="postsContainer">
-                    @foreach (var post in posts)
-                    {
-                        <PostCard Post="post" OnPostClick="HandlePostClick" />
-                    }
-
-                    @if (canLoadMore)
-                    {
-                        <div class="load-more-container">
-                            <button class="btn btn-secondary load-more-btn"
-                            @onclick="LoadMorePosts"
-                            disabled="@isLoadingMore">
-                                @if (isLoadingMore)
-                                {
-                                    <div class="loading-spinner small"></div>
-                                    <span>Loading...</span>
-                                }
-                                else
-                                {
-                                    <span>Load More Posts</span>
-                                }
-                            </button>
-                        </div>
-                    }
-                    else if (posts.Any())
-                    {
-                        <div class="end-of-feed">
-                            <span>You've reached the end!</span>
-                        </div>
-                    }
-                </div>
-
-                <!-- Floating refresh button -->
-                <div class="floating-refresh">
-                    <button class="refresh-btn" @onclick="GoToCreate" disabled="@isRefreshing">
-                        <FluentIcon Value="@(new Icons.Regular.Size16.Pen().WithColor("var(--black)"))" />
-                    </button>
-                </div>
-            }
-            else if (isLoading)
-            {
-                <!-- Loading skeleton -->
-                <div class="feed-skeleton">
-                    @for (int i = 0; i < 5; i++)
-                    {
-                        <div class="skeleton-post">
-                            <div class="skeleton-header">
-                                <div class="skeleton-avatar"></div>
-                                <div class="skeleton-name"></div>
-                            </div>
-                            <div class="skeleton-content"></div>
-                            <div class="skeleton-content short"></div>
-                            <div class="skeleton-actions"></div>
-                        </div>
-                    }
-                </div>
-            }
-            else
-            {
-                <!-- Empty state -->
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <Logo Width="80" Height="80" Color="rgba(255, 255, 255, 0.3)" />
-                    </div>
-                    <h2 class="empty-title">No posts yet</h2>
-                    <p class="empty-text">Be the first to share something!</p>
-                    <button class="btn btn-primary" @onclick="RefreshFeed">
-                        Refresh Feed
-                    </button>
-                </div>
-            }
+            <InfiniteScroll 
+            ObserverId="observer1"
+            ScrollBoxId="scrollBox1"
+            HasAnythingExistToLoadMore="true"
+            IsLoadingMore="@isLoadingMore"
+            IsInfiniteLoadingNeeded="canLoadMore"
+            OnEndReached="LoadMorePosts">
+                <Virtualize Items="posts" Context="item">
+                    <PostCard Post="item" FullPost="false" />
+                </Virtualize>               
+                <div id="observer1"></div>
+            </InfiniteScroll>              
         </div>
+
+        <FloatingActionButton FluentIcon="@(icon)"
+                              Text="Create Post"
+                              OnClick="@GoToCreate"
+                              CssClass="primary" />
+
+        @if (isLoadingMore)
+        {
+            <LoadingIndicator />
+        }
     }
     else
     {
-        <!-- Not authenticated - redirect to login -->
+        <!-- Not authenticated state -->
         <div class="auth-required">
             <div class="auth-content">
                 <Logo Width="120" Height="120" Color="rgba(255, 255, 255, 0.3)" />
@@ -141,358 +78,73 @@
 </div>
 
 <style>
-    .feed-container {
-    min-height: 100vh;
-    background-color: var(--black);
-    color: var(--white);
-    }
 
-    .refresh-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 20px;
-    color: var(--gray-300);
-    font-size: 14px;
-    }
-
-    .loading-spinner {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--gray-600);
-    border-top: 2px solid var(--white);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    }
-
-    @@keyframes spin {
-    0%
-
-    {
-    transform: rotate(0deg);
-    }
-
-    100% {
-    transform: rotate(360deg);
-    }
-
-    }
-
-    .posts-container {
-    padding-bottom: 20px;
-    }
-
-    .load-more-container {
-    display: flex;
-    justify-content: center;
-    padding: 20px;
-    margin-top: 16px;
-    }
-
-    .load-more-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    min-width: 140px;
-    justify-content: center;
-    }
-
-    .loading-spinner.small {
-    width: 16px;
-    height: 16px;
-    border-width: 2px;
-    }
-
-    .floating-refresh {
-    position: fixed;
-    bottom: 40px;
-    right: 30px;
-    z-index: 50;
-    }
-
-    .refresh-btn {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-        background-color: GoToCreate;
-    border: none;
-    color: var(--black);
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    transition: all 0.2s ease;
-    }
-
-    .refresh-btn:hover:not(:disabled) {
-            background-color: var(--gray-200);
-    transform: scale(1.05);
-    }
-
-    .refresh-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    }
-
-    .refresh-icon.spinning {
-    animation: spin 1s linear infinite;
-    }
-
-    .end-of-feed {
-    text-align: center;
-    padding: 30px 20px;
-    color: var(--gray-400);
-    font-size: 14px;
-    }
-
-    /* Loading skeleton styles */
-    .feed-skeleton {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    }
-
-    .skeleton-post {
-    background-color: var(--gray-950);
-    border: 1px solid var(--transparent-white);
-    border-radius: 12px;
-    padding: 16px;
-    animation: pulse 1.5s ease-in-out infinite alternate;
-    }
-
-    .skeleton-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
-    }
-
-    .skeleton-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: var(--gray-600);
-    }
-
-    .skeleton-name {
-    width: 120px;
-    height: 16px;
-    border-radius: 4px;
-    background-color: var(--gray-600);
-    }
-
-    .skeleton-content {
-    width: 100%;
-    height: 16px;
-    border-radius: 4px;
-    background-color: var(--gray-600);
-    margin-bottom: 8px;
-    }
-
-    .skeleton-content.short {
-    width: 60%;
-    }
-
-    .skeleton-actions {
-    width: 100%;
-    height: 40px;
-    border-radius: 8px;
-    background-color: var(--gray-600);
-    margin-top: 12px;
-    }
-
-    @@keyframes pulse {
-    0%
-
-    {
-    opacity: 0.6;
-    }
-
-    100% {
-    opacity: 1;
-    }
-
-    }
-
-    /* Empty state */
     .empty-state, .auth-required {
-    text-align: center;
-    padding: 60px 20px;
-    background-color: var(--gray-950);
-    border: 1px solid var(--transparent-white);
-    border-radius: 12px;
-    margin-top: 40px;
+        text-align: center;
+        padding: 60px 20px;
+        background-color: var(--gray-950);
+        border: 1px solid var(--transparent-white);
+        border-radius: 12px;
+        margin-top: 40px;
     }
 
     .auth-content {
-    max-width: 400px;
-    margin: 0 auto;
-    }
-
-    .empty-icon {
-    margin-bottom: 20px;
-    }
-
-    .empty-title, .auth-required h2 {
-    color: var(--white);
-    font-size: 24px;
-    font-weight: 600;
-    margin-bottom: 12px;
-    }
-
-    .empty-text, .auth-required p {
-    color: var(--gray-300);
-    font-size: 16px;
-    margin-bottom: 24px;
-    }
-
-    /* Responsive */
-    @@media (max-width: 768px) {
-    .feed-header
-
-    {
-    padding: 12px 16px;
-    }
-
-    .header-title {
-    font-size: 20px;
-    }
-
-    .feed-main {
-    padding: 16px;
-    }
-
-    .floating-refresh {
-    bottom: 20px;
-    right: 20px;
-    }
-
-    .refresh-btn {
-    width: 48px;
-    height: 48px;
-    font-size: 20px;
-    }
-
+        max-width: 400px;
+        margin: 0 auto;
     }
 </style>
 
 @code {
-    private bool isAuthenticated = false;
-    private UserProfile currentUser;
+    // State - parent controls everything
     private List<BasePost> posts = new();
-    private bool isLoading = true;
-    private bool isRefreshing = false;
+    private bool isAuthenticated = false;
+    private UserProfile? currentUser;
     private bool isLoadingMore = false;
     private bool canLoadMore = true;
-    private ElementReference postsContainer;
+    private int currentPage = 0;
+    private int pageSize = 20;
 
-    private GetPostDto searchQuery = new()
-        {
-            Audience = Audience.All,
-            Count = 20,
-            Page = 0,
-            Sort = SortType.New
-        };
+    RenderFragment icon = @<FluentIcon Value="@(new Microsoft.FluentUI.AspNetCore.Components.Icons.Regular.Size24.Pen().WithColor("var(--black)"))" />;
+
+
 
     protected override async Task OnInitializedAsync()
     {
+        Console.WriteLine("HomeFeed: Initializing");
+
         // Subscribe to authentication state changes
         AuthService.AuthenticationStateChanged += OnAuthenticationStateChanged;
 
         // Check initial authentication state
-        await CheckAuthenticationState();
-        await TelegramService.HideBackButtonAsync();
+        isAuthenticated = await AuthService.IsAuthenticatedAsync();
+
         if (isAuthenticated)
         {
+            currentUser = await AuthService.GetCurrentUserAsync();
             await LoadInitialFeed();
         }
     }
 
-    private async Task CheckAuthenticationState()
-    {
-        isAuthenticated = await AuthService.IsAuthenticatedAsync();
-        if (isAuthenticated)
-        {
-            currentUser = await AuthService.GetCurrentUserAsync();
-        }
-        StateHasChanged();
-    }
-
     private async Task LoadInitialFeed()
     {
-        isLoading = true;
-        StateHasChanged();
+        Console.WriteLine("HomeFeed: Loading initial feed");
 
         try
         {
-            var result = await FeedService.GetFeedAsync(searchQuery);
-            posts = result.Data.ToList();
-            searchQuery.Page++;
-            canLoadMore = CanLoadMore(result);
-        }
-        catch (Exception ex)
-        {
-            // Handle error - maybe show toast notification
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
+            isLoadingMore = true;
+            currentPage = 0;
 
-    private bool CanLoadMore(SearchResultDto<BasePost> result)
-    {
-        if (result.TotalPage > searchQuery.Page && result.TotalCount != 0)
-            return true;
-        else
-            return  false;
-    }
+            var filter = new GetPostDto { Page = currentPage, Count = pageSize };
+            var result = await FeedService.GetFeedAsync(filter);
 
-    private async Task RefreshFeed()
-    {
-        if (isRefreshing) return;
-
-        isRefreshing = true;
-        //showFloatingRefresh = false;
-        StateHasChanged();
-
-        try
-        {
-            searchQuery.Page = 0;
-            var result = await FeedService.RefreshFeedAsync(searchQuery);
-            posts = result.Data.ToList();
-            canLoadMore = CanLoadMore(result);
-        }
-        catch (Exception ex)
-        {
-            // Handle error
-        }
-        finally
-        {
-            isRefreshing = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task LoadMorePosts()
-    {
-        if (isLoadingMore || !canLoadMore) return;
-
-        isLoadingMore = true;
-        StateHasChanged();
-
-        try
-        {
-            var result = await FeedService.LoadMorePostsAsync(searchQuery);
             posts.AddRange(result.Data);
-            canLoadMore = CanLoadMore(result);
+            canLoadMore = result.Data.Count == pageSize; // Can load more if we got full page
+            currentPage = 1; // Set current page to 1 since we just loaded the first page
+            Console.WriteLine($"HomeFeed: Initial load complete - {posts.Count} posts, canLoadMore={canLoadMore}");
         }
         catch (Exception ex)
         {
-            // Handle error - could show a toast notification
-            Console.WriteLine($"Error loading more posts: {ex.Message}");
+            Console.WriteLine($"HomeFeed: Error loading initial feed: {ex.Message}");
         }
         finally
         {
@@ -501,27 +153,87 @@
         }
     }
 
-    private async Task HandlePostClick(BasePost post)
+    private async Task LoadMorePosts()
     {
-        Navigation.NavigateTo($"/posts/{post.Id}");
+        if (isLoadingMore)
+        {
+            return;
+        }
+
+        if (!canLoadMore)
+        {
+            return;
+        }
+
+        try
+        {
+            isLoadingMore = true;
+            StateHasChanged(); // Show loading state immediately
+
+
+            var filter = new GetPostDto { Page = currentPage, Count = pageSize };
+            var result = await FeedService.LoadMorePostsAsync(filter);
+
+
+            if (result.Data.Any())
+            {
+
+                foreach (var item in result.Data)
+                {
+                    if (posts.Any(x => x.Id != item.Id))
+                        posts.Add(item);
+                }
+                canLoadMore = result.Data.Count == pageSize; // Can load more if we got full page
+            }
+            else
+            {
+                canLoadMore = false; // No more data
+            }
+
+            currentPage++;
+
+
+        }
+        catch (Exception ex)
+        {
+            currentPage--; // Rollback page increment on error
+        }
+        finally
+        {
+            isLoadingMore = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshFeed()
+    {
+        Console.WriteLine("HomeFeed: Refreshing feed");
+
+        try
+        {
+            posts.Clear();
+            currentPage = 0;
+            canLoadMore = true;
+            await LoadInitialFeed();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"HomeFeed: Error refreshing feed: {ex.Message}");
+        }
+    }
+
+
+    private void NavigateToProfile()
+    {
+        if (currentUser?.UserName != null)
+        {
+            Navigation.NavigateTo($"/profile/{currentUser.UserName}");
+        }
     }
 
     private void GoToCreate()
     {
         Navigation.NavigateTo("/create-post");
-
-    }
-    private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
-    {
-        isAuthenticated = e.IsAuthenticated;
-        currentUser = e.User;
-
-        if (isAuthenticated && !posts.Any())
-        {
-            InvokeAsync(LoadInitialFeed);
-        }
-
-        InvokeAsync(StateHasChanged);
     }
 
     private void GoToLogin()
@@ -529,13 +241,29 @@
         Navigation.NavigateTo("/login");
     }
 
-    private void GoToProfile()
+    private void OnAuthenticationStateChanged(object sender, AuthenticationStateChangedEventArgs e)
     {
-        Navigation.NavigateTo($"/profile/{currentUser?.UserName}");
+        Console.WriteLine($"HomeFeed: Auth state changed - authenticated: {e.IsAuthenticated}");
+
+        isAuthenticated = e.IsAuthenticated;
+        currentUser = e.User;
+
+        if (isAuthenticated && !posts.Any())
+        {
+            InvokeAsync(LoadInitialFeed);
+        }
+        else if (!isAuthenticated)
+        {
+            posts.Clear();
+            canLoadMore = true;
+            currentPage = 0;
+        }
+
+        InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
     {
         AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
     }
-}}
+}

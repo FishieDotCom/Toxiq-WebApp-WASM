@@ -19,16 +19,6 @@ public interface IAuthService
     ValueTask<LoginResponse> TG_Login(LoginDto loginDto);
 }
 
-public interface IPostService
-{
-    ValueTask<SearchResultDto<BasePost>> GetFeed(GetPostDto filter);
-    ValueTask<BasePost> GetPost(Guid postId);
-    ValueTask<BasePost> GetPrompt(Guid postId);
-    ValueTask<SearchResultDto<BasePost>> GetPostsByPrompt(Guid promptId, int page, int pageSize);
-    ValueTask Publish(BasePost post);
-    ValueTask Upvote(Guid id);
-    ValueTask Downvote(Guid id);
-}
 
 public interface INotesService
 {

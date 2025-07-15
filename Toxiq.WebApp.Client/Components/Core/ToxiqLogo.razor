@@ -1,0 +1,18 @@
+﻿@inherits ComponentBase
+
+<div class="toxiq-logo" style="height: @(Height)px;">
+    <svg viewBox="0 0 120 40" style="height: @(Height)px; width: auto;">
+        <Logo Height="@Height.ToString()" Width="@Height.ToString()"/>
+        <text x="10" y="28"
+              fill="var(--white)"
+              font-family="'Roboto', sans-serif"
+              font-size="24"
+              font-weight="700">
+            Toxiq
+        </text>
+    </svg>
+</div>
+
+@code {
+    [Parameter] public int Height { get; set; } = 32;
+}

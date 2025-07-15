@@ -1,7 +1,7 @@
-﻿@* Toxiq.WebApp.Client/Components/PostCard.razor *@
-@* Updated PostCard Component - Twitter-like design while preserving all mobile app features *@
+﻿
 @using Microsoft.FluentUI.AspNetCore.Components
 @using Toxiq.Mobile.Dto
+@using Toxiq.WebApp.Client.Components.Core
 @using Toxiq.WebApp.Client.Services.Feed
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
@@ -171,7 +171,6 @@
 @code {
     [Parameter] public BasePost Post { get; set; } = default!;
     [Parameter] public bool FullPost { get; set; } = false;
-    [Parameter] public EventCallback<BasePost> OnPostClick { get; set; }
 
     private BasePost? ReplyPost { get; set; }
     private bool? CurrentSupportStatus { get; set; }
@@ -299,7 +298,7 @@
     // Event Handlers
     private async Task HandlePostClick()
     {
-        await OnPostClick.InvokeAsync(Post);
+        Navigation.NavigateTo($"/posts/{Post.Id}");
     }
 
     private async Task HandleProfileClick()

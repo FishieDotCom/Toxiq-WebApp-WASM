@@ -28,7 +28,6 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         {
             try
             {
-                _logger.LogDebug("Starting login process with credential length: {Length}", request.Credential?.Length);
 
                 var loginDto = new LoginDto
                 {
@@ -37,21 +36,17 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                 };
 
                 var response = await _apiService.AuthService.Login(loginDto);
-                _logger.LogDebug("Login API response received: token={TokenStatus}",
-                    response.token == "NA" ? "INVALID" : "VALID");
+
 
                 if (response.token == "NA" || string.IsNullOrEmpty(response.token))
                 {
                     return new AuthenticationResult(false, ErrorMessage: "Invalid login token");
                 }
 
-                _logger.LogDebug("Storing token...");
-                await _tokenStorage.SetTokenAsync(response.token);
-                _logger.LogDebug("Token stored, verifying...");
+                await _tokenStorage.SetAccessTokenAsync(response.token);
 
                 // Verify token was stored
-                var storedToken = await _tokenStorage.GetTokenAsync();
-                _logger.LogDebug("Token verification: stored={Stored}", !string.IsNullOrEmpty(storedToken));
+                var storedToken = await _tokenStorage.GetAccessTokenAsync();
 
                 return new AuthenticationResult(
                     IsSuccess: true,
@@ -74,14 +69,14 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             try
             {
                 // Set token temporarily to test it
-                var currentToken = await _tokenStorage.GetTokenAsync();
-                await _tokenStorage.SetTokenAsync(token);
+                var currentToken = await _tokenStorage.GetAccessTokenAsync();
+                await _tokenStorage.SetAccessTokenAsync(token);
 
                 //var isValid = await _apiService.AuthService.CheckHeartBeat();
 
                 if (currentToken != null)
                 {
-                    await _tokenStorage.SetTokenAsync(currentToken); // Restore previous token
+                    await _tokenStorage.SetAccessTokenAsync(currentToken); // Restore previous token
                 }
 
                 return true;
@@ -94,7 +89,7 @@ namespace Toxiq.WebApp.Client.Services.Authentication
 
         public async ValueTask LogoutAsync()
         {
-            await _tokenStorage.RemoveTokenAsync();
+            await _tokenStorage.ClearTokensAsync();
         }
     }
 }

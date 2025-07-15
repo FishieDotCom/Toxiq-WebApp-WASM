@@ -529,15 +529,7 @@
             // Submit to API (mirrors mobile apiService.UserService.EditProfile)
             await ApiService.UserService.EditProfile(profile);
 
-            // Navigation logic (mirrors mobile navigation)
-            if (CanGoBack)
-            {
-                Navigation.NavigateTo("/profile");
-            }
-            else
-            {
-                Navigation.NavigateTo("/");
-            }
+                Navigation.NavigateTo("/profile");   
         }
         catch (Exception ex)
         {

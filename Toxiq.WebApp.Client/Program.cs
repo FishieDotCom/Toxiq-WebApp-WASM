@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Toxiq.WebApp.Client.Extensions;
 using Toxiq.WebApp.Client.Services.Api;
-using Toxiq.WebApp.Client.Services.Authentication;
 using Toxiq.WebApp.Client.Services.Caching;
 using Toxiq.WebApp.Client.Services.LazyLoading;
 using Toxiq.WebApp.Client.Services.Platform;
@@ -44,11 +43,12 @@ namespace Toxiq.WebApp.Client
             });
 
             // Core services (no dependencies)
-            builder.Services.AddMemoryCache();
-            builder.Services.AddSingleton<ICacheService, MultiLayerCacheService>();
-            builder.Services.AddSingleton<ITokenStorage, LocalStorageTokenStorage>();
             builder.Services.AddScoped<IPlatformService, PlatformService>();
-            builder.Services.AddSingleton<IIndexedDbService, IndexedDbService>();
+            builder.Services.AddScoped<ILocalSecureStorage, LocalSecureStorage>();
+
+            // IndexedDB for all cached data
+            builder.Services.AddScoped<ICacheService, IndexedDbCacheService>();
+
 
             // FIXED: HttpClient registration for WebAssembly
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
@@ -56,43 +56,20 @@ namespace Toxiq.WebApp.Client
             // API Service registration
             builder.Services.AddScoped<OptimizedApiService>();
             builder.Services.AddScoped<IApiService>(provider => provider.GetRequiredService<OptimizedApiService>());
-
-            // Authentication services - FIXED: Ensure proper order
-            builder.Services.AddScoped<IAuthenticationProvider, TelegramAuthProvider>();
-            builder.Services.AddScoped<IAuthenticationProvider, ManualAuthProvider>();
-            builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
-
-            // Notification services - FIXED: Register in correct order
+            builder.Services.AddApiServices();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<INotificationService, NotificationService>();
             builder.Services.AddScoped<INotificationService, NotificationService>();
 
-
-            var baseUrl = builder.Configuration["ApiBaseUrl"]?.TrimEnd('/').Replace("/api", "") ?? "https://toxiq.xyz";
-            builder.Services.AddSignalRHubGateway(baseUrl);
-
-
-            builder.Services.AddChatServices();
-
-
-            builder.Services.ConfigureChatOptions(options =>
-            {
-                options.DefaultPageSize = 20;
-                options.MaxMessageLength = 500;
-                options.EnableRealTimeNotifications = true;
-                options.EnableBrowserNotifications = true;
-                options.AutoScrollToNewMessages = true;
-                options.ShowTypingIndicators = true;
-                options.MessageEditTimeLimitMinutes = 15;
-                options.EnableMessageReactions = true;
-                options.EnableFileAttachments = true;
-                options.MaxFileSize = 10 * 1024 * 1024; // 10MB
-            });
+            builder.Services.AddAuthenticationServices();
+            builder.Services.AddUIServices();
 
             // Additional services
             builder.Services.AddScoped<ILazyLoader, LazyLoader>();
 
             // Add feed and API services via extension methods
             builder.Services.AddFeedServices();
-            builder.Services.AddApiServices();
+
 
             // FluentUI Components
             builder.Services.AddFluentUIComponents();

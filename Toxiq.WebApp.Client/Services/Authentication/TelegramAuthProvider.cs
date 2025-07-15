@@ -1,5 +1,6 @@
 ﻿using Blazored.LocalStorage;
-using TelegramApps.Blazor.Services;
+using Microsoft.JSInterop;
+using System.Text.Json;
 using Toxiq.Mobile.Dto;
 
 namespace Toxiq.WebApp.Client.Services.Authentication
@@ -31,7 +32,12 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         {
             try
             {
-                var isTelegramWebApp = await _telegramService.IsAvailableAsync();
+                // Check if we're in a Telegram WebApp context
+                var result = await _jsRuntime.InvokeAsync<JsonElement>("window.toxiqPlatform.detect");
+
+                var isTelegramWebApp = result.TryGetProperty("isTelegramMiniApp", out var isTelegramMiniAppProperty)
+                    && isTelegramMiniAppProperty.GetBoolean();
+
                 if (!isTelegramWebApp)
                 {
                     _logger.LogDebug("Not in Telegram WebApp context");
@@ -56,7 +62,9 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             {
                 _logger.LogInformation("Attempting Telegram auto-login...");
 
-                var initData = await _telegramService.GetRawInitDataAsync();
+                // Get Telegram WebApp init data
+                var initData = await _jsRuntime.InvokeAsync<string>("telegramAuthUtils.getInitData");
+
                 if (string.IsNullOrWhiteSpace(initData))
                 {
                     _logger.LogWarning("No Telegram init data available");

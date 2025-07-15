@@ -3,6 +3,7 @@
 
 using System.Text.RegularExpressions;
 using Toxiq.Mobile.Dto;
+using Toxiq.WebApp.Client.Services.Caching;
 
 namespace Toxiq.WebApp.Client.Services.Api
 {
@@ -30,19 +31,41 @@ namespace Toxiq.WebApp.Client.Services.Api
         // Dhivehi/Thaana character pattern (matching mobile app exactly)
         private const string DhivehiPattern = @"ހށނރބޅކއވމފދތލގޏސޑޒޓޔޕޖޗޘޙޚޛޜޝޞޟޠޡޢޣޤޥަާިީުޫެޭޮޯްޱ";
         private const string UsernamePattern = @"^[a-zA-Z0-9_" + DhivehiPattern + @"]{4,15}$";
+        private readonly ICacheService _cache; // IndexedDB
 
-        public UserService(OptimizedApiService api, ILogger<UserService> logger = null)
+        public UserService(OptimizedApiService api, ICacheService cacheService, ILogger<UserService> logger = null)
         {
             _api = api;
             _logger = logger;
+            _cache = cacheService;
         }
 
-        public ValueTask<UserProfile> GetMe(bool force = false) =>
-            force ? _api.GetAsync<UserProfile>("User/GetMe")
-                  : _api.GetCachedAsync<UserProfile>("User/GetMe", TimeSpan.FromMinutes(30));
+        public async ValueTask<UserProfile> GetMe(bool force = false)
+        {
+            if (force)
+            {
+                var user = await _api.GetAsync<UserProfile>("User/GetMe");
+                await _cache.SetAsync("User/GetMe", user, TimeSpan.FromMinutes(30));
+                return user;
+            }
+            else
+            {
+                return await _cache.GetOrCreateAsync<UserProfile>("User/GetMe", async () =>
+                 {
+                     // Fetch user profile with caching
+                     return await _api.GetAsync<UserProfile>("User/GetMe");
+                 }, TimeSpan.FromMinutes(30));
+            }
+        }
 
-        public ValueTask<UserProfile> GetUser(string username) =>
-            _api.GetCachedAsync<UserProfile>($"User/GetUser/{username}", TimeSpan.FromMinutes(15));
+        public async ValueTask<UserProfile> GetUser(string username)
+        {
+            // Use cached version if available, otherwise fetch from API
+            return await _cache.GetOrCreateAsync<UserProfile>($"User/GetUser/{username}", async () =>
+            {
+                return await _api.GetAsync<UserProfile>($"User/GetUser/{username}");
+            }, TimeSpan.FromMinutes(15));
+        }
 
         public async ValueTask<bool> CheckUsername(string username)
         {
@@ -117,6 +140,8 @@ namespace Toxiq.WebApp.Client.Services.Api
 
                 // Invalidate cache after profile update
                 InvalidateCache();
+
+                await GetMe(true); // Refresh cached profile
                 _logger?.LogInformation("Profile successfully updated");
             }
             catch (Exception ex)
@@ -127,10 +152,10 @@ namespace Toxiq.WebApp.Client.Services.Api
         }
 
         public ValueTask<List<BasePost>> GetUserPosts(string username, bool includeReplies = false) =>
-            _api.GetCachedAsync<List<BasePost>>($"User/GetUserPosts/{username}", TimeSpan.FromMinutes(5));
+            _api.GetAsync<List<BasePost>>($"User/GetUserPosts/{username}");
 
         public ValueTask<List<BasePost>> GetUserWallPosts(string username) =>
-            _api.GetCachedAsync<List<BasePost>>($"User/GetUserWallPosts/{username}", TimeSpan.FromMinutes(5));
+            _api.GetAsync<List<BasePost>>($"User/GetUserWallPosts/{username}");
 
         // Username validation methods (matching mobile app exactly)
         public bool ValidateUsername(string username, out string errorMessage)
@@ -184,8 +209,8 @@ namespace Toxiq.WebApp.Client.Services.Api
 
         public void InvalidateCache()
         {
-            // Invalidate user-related cache entries
-            //_api.InvalidateCachePattern("User/GetMe");
+            // Invalidate user-related cache entries            
+            _cache.RemoveByPatternAsync("User/GetUser/");
             _logger?.LogDebug("User cache invalidated");
         }
 

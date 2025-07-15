@@ -1,90 +1,66 @@
-﻿using Blazored.LocalStorage;
+﻿using Toxiq.WebApp.Client.Services.Caching;
 
 namespace Toxiq.WebApp.Client.Services.Authentication
 {
     public interface ITokenStorage
     {
-        ValueTask<string> GetTokenAsync();
-        ValueTask SetTokenAsync(string token);
-        ValueTask RemoveTokenAsync();
+        Task ClearTokensAsync();
+        Task<string?> GetAccessTokenAsync();
+        Task<string?> GetRefreshTokenAsync();
         ValueTask<bool> HasTokenAsync();
+        Task<bool> HasValidTokenAsync();
+        Task SetAccessTokenAsync(string token);
+        Task SetRefreshTokenAsync(string token);
     }
 
     public class LocalStorageTokenStorage : ITokenStorage
     {
-        private readonly ILocalStorageService _localStorage;
-        private readonly ILogger<LocalStorageTokenStorage> _logger;
-        private const string TokenKey = "token";
+        private readonly ILocalSecureStorage _secureStorage;
+        private const string ACCESS_TOKEN_KEY = "token";
+        private const string REFRESH_TOKEN_KEY = "refresh_token";
+        private const string USER_PROFILE_KEY = "user_profile";
 
-        public LocalStorageTokenStorage(ILocalStorageService localStorage, ILogger<LocalStorageTokenStorage> logger)
+        public LocalStorageTokenStorage(ILocalSecureStorage secureStorage)
         {
-            _localStorage = localStorage;
-            _logger = logger;
-            _logger.LogDebug("LocalStorageTokenStorage initialized");
+            _secureStorage = secureStorage;
         }
 
-        public async ValueTask<string> GetTokenAsync()
+        public async Task<string?> GetAccessTokenAsync()
         {
-            try
-            {
-                _logger.LogDebug("Attempting to retrieve token from localStorage with key: {TokenKey}", TokenKey);
-                var token = await _localStorage.GetItemAsync<string>(TokenKey);
-                _logger.LogDebug("Retrieved token from localStorage: {HasToken}", !string.IsNullOrEmpty(token));
-                return token;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to retrieve token from storage");
-                return null;
-            }
+            return await _secureStorage.GetAsync<string>(ACCESS_TOKEN_KEY);
         }
 
-        public async ValueTask SetTokenAsync(string token)
+        public async Task SetAccessTokenAsync(string token)
         {
-            try
-            {
-                _logger.LogDebug("Attempting to store token in localStorage: {HasToken}", !string.IsNullOrEmpty(token));
-
-                if (string.IsNullOrEmpty(token))
-                {
-                    await RemoveTokenAsync();
-                    return;
-                }
-
-                await _localStorage.SetItemAsync(TokenKey, token);
-                _logger.LogDebug("Token stored successfully in localStorage");
-
-                // Verify it was stored
-                var verifyToken = await _localStorage.GetItemAsync<string>(TokenKey);
-                _logger.LogDebug("Token verification: stored={Stored}", !string.IsNullOrEmpty(verifyToken));
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to store token");
-                throw;
-            }
+            await _secureStorage.SetAsync(ACCESS_TOKEN_KEY, token);
         }
 
-        public async ValueTask RemoveTokenAsync()
+        public async Task<string?> GetRefreshTokenAsync()
         {
-            try
-            {
-                _logger.LogDebug("Removing token from localStorage");
-                await _localStorage.RemoveItemAsync(TokenKey);
-                _logger.LogDebug("Token removed successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to remove token");
-            }
+            return await _secureStorage.GetAsync<string>(REFRESH_TOKEN_KEY);
         }
 
-        public async ValueTask<bool> HasTokenAsync()
+        public async Task SetRefreshTokenAsync(string token)
         {
-            var token = await GetTokenAsync();
-            var hasToken = !string.IsNullOrEmpty(token);
-            _logger.LogDebug("HasToken check: {HasToken}", hasToken);
-            return hasToken;
+            await _secureStorage.SetAsync(REFRESH_TOKEN_KEY, token);
+        }
+
+        public async Task ClearTokensAsync()
+        {
+            await _secureStorage.RemoveAsync(ACCESS_TOKEN_KEY);
+            await _secureStorage.RemoveAsync(REFRESH_TOKEN_KEY);
+            await _secureStorage.RemoveAsync(USER_PROFILE_KEY);
+        }
+
+        public async Task<bool> HasValidTokenAsync()
+        {
+            var token = await GetAccessTokenAsync();
+            return !string.IsNullOrEmpty(token);
+        }
+
+        public ValueTask<bool> HasTokenAsync()
+        {
+            throw new NotImplementedException();
         }
     }
 }

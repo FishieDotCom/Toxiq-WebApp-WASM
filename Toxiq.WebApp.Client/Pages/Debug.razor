@@ -33,7 +33,7 @@
     {
         try
         {
-            await TokenStorage.SetTokenAsync(testToken);
+            await TokenStorage.SetAccessTokenAsync(testToken);
             debugOutput += $"✓ Set token via TokenStorage: {testToken}\n";
         }
         catch (Exception ex)
@@ -46,7 +46,7 @@
     {
         try
         {
-            var token = await TokenStorage.GetTokenAsync();
+            var token = await TokenStorage.GetAccessTokenAsync();
             debugOutput += $"📖 Retrieved token: {token ?? "NULL"}\n";
         }
         catch (Exception ex)
@@ -59,7 +59,7 @@
     {
         try
         {
-            await TokenStorage.RemoveTokenAsync();
+            await TokenStorage.ClearTokensAsync();
             debugOutput += $"🗑️ Removed token\n";
         }
         catch (Exception ex)

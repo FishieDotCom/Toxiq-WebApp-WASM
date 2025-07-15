@@ -5,76 +5,25 @@ using System.Text.Json;
 namespace Toxiq.WebApp.Client.Services.Caching
 {
     /// <summary>
-    /// IndexedDB service interface for client-side data persistence
-    /// Replaces mobile app's MonkeyCache with web-compatible storage
+    /// Cache service using IndexedDB for all data storage
+    /// Simple, persistent, and mirrors mobile app storage patterns
     /// </summary>
-    public interface IIndexedDbService
-    {
-        /// <summary>
-        /// Store item in IndexedDB
-        /// </summary>
-        Task SetItemAsync<T>(string key, T value);
-
-        /// <summary>
-        /// Get item from IndexedDB
-        /// </summary>
-        Task<T?> GetItemAsync<T>(string key);
-
-        /// <summary>
-        /// Remove item from IndexedDB
-        /// </summary>
-        Task RemoveItemAsync(string key);
-
-        /// <summary>
-        /// Clear all items from IndexedDB
-        /// </summary>
-        Task ClearAsync();
-
-        /// <summary>
-        /// Check if key exists in IndexedDB
-        /// </summary>
-        Task<bool> ContainsKeyAsync(string key);
-    }
-
-    /// <summary>
-    /// IndexedDB service implementation using JavaScript interop
-    /// Provides persistent storage for web app similar to mobile MonkeyCache
-    /// </summary>
-    public class IndexedDbService : IIndexedDbService
+    public class IndexedDbCacheService : ICacheService
     {
         private readonly IJSRuntime _jsRuntime;
-        private readonly string _dbName = "ToxiqWebApp";
-        private readonly string _storeName = "ToxiqStore";
+        private readonly ILogger<IndexedDbCacheService> _logger;
 
-        public IndexedDbService(IJSRuntime jsRuntime)
+        public IndexedDbCacheService(IJSRuntime jsRuntime, ILogger<IndexedDbCacheService> logger)
         {
             _jsRuntime = jsRuntime;
+            _logger = logger;
         }
 
-        /// <summary>
-        /// Store item in IndexedDB with JSON serialization
-        /// </summary>
-        public async Task SetItemAsync<T>(string key, T value)
+        public async Task<T?> GetAsync<T>(string key)
         {
             try
             {
-                var json = JsonSerializer.Serialize(value);
-                await _jsRuntime.InvokeVoidAsync("toxiqIndexedDb.setItem", key, json);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error storing item in IndexedDB: {ex.Message}");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Get item from IndexedDB with JSON deserialization
-        /// </summary>
-        public async Task<T?> GetItemAsync<T>(string key)
-        {
-            try
-            {
+                // Get raw data from IndexedDB
                 var json = await _jsRuntime.InvokeAsync<string>("toxiqIndexedDb.getItem", key);
 
                 if (string.IsNullOrEmpty(json))
@@ -82,19 +31,75 @@ namespace Toxiq.WebApp.Client.Services.Caching
                     return default(T);
                 }
 
-                return JsonSerializer.Deserialize<T>(json);
+                // Deserialize cache entry
+                var cacheEntry = JsonSerializer.Deserialize<CacheEntry>(json);
+
+                if (cacheEntry == null)
+                {
+                    return default(T);
+                }
+
+                // Check expiration
+                if (cacheEntry.ExpiresAt.HasValue && cacheEntry.ExpiresAt.Value <= DateTime.UtcNow)
+                {
+                    await RemoveAsync(key);
+                    return default(T);
+                }
+
+                // Deserialize the actual value
+                return JsonSerializer.Deserialize<T>(cacheEntry.Data);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error retrieving item from IndexedDB: {ex.Message}");
+                _logger.LogWarning(ex, "Failed to get cache item for key: {Key}", key);
                 return default(T);
             }
         }
 
-        /// <summary>
-        /// Remove item from IndexedDB
-        /// </summary>
-        public async Task RemoveItemAsync(string key)
+        public async Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
+        {
+            try
+            {
+                // Create cache entry
+                var cacheEntry = new CacheEntry
+                {
+                    Data = JsonSerializer.Serialize(value),
+                    CreatedAt = DateTime.UtcNow,
+                    ExpiresAt = expiration.HasValue ? DateTime.UtcNow.Add(expiration.Value) : null
+                };
+
+                // Serialize and store in IndexedDB
+                var json = JsonSerializer.Serialize(cacheEntry);
+                await _jsRuntime.InvokeVoidAsync("toxiqIndexedDb.setItem", key, json);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to set cache item for key: {Key}", key);
+            }
+        }
+
+        public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null)
+        {
+            // Try to get existing value
+            var existing = await GetAsync<T>(key);
+            if (existing != null && !existing.Equals(default(T)))
+            {
+                return existing;
+            }
+
+            // Create new value
+            var value = await factory();
+
+            // Cache the new value if not null/default
+            if (value != null && !value.Equals(default(T)))
+            {
+                await SetAsync(key, value, expiration);
+            }
+
+            return value;
+        }
+
+        public async Task RemoveAsync(string key)
         {
             try
             {
@@ -102,14 +107,10 @@ namespace Toxiq.WebApp.Client.Services.Caching
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error removing item from IndexedDB: {ex.Message}");
-                throw;
+                _logger.LogWarning(ex, "Failed to remove cache item for key: {Key}", key);
             }
         }
 
-        /// <summary>
-        /// Clear all items from IndexedDB
-        /// </summary>
         public async Task ClearAsync()
         {
             try
@@ -118,25 +119,110 @@ namespace Toxiq.WebApp.Client.Services.Caching
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error clearing IndexedDB: {ex.Message}");
-                throw;
+                _logger.LogWarning(ex, "Failed to clear cache");
             }
         }
 
-        /// <summary>
-        /// Check if key exists in IndexedDB
-        /// </summary>
-        public async Task<bool> ContainsKeyAsync(string key)
+        public async Task<bool> ExistsAsync(string key)
         {
             try
             {
                 return await _jsRuntime.InvokeAsync<bool>("toxiqIndexedDb.containsKey", key);
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"Error checking key in IndexedDB: {ex.Message}");
                 return false;
             }
         }
+
+        public async Task RemoveByPatternAsync(string pattern)
+        {
+            try
+            {
+                var allKeys = await GetKeysAsync();
+                var keysToRemove = allKeys
+                    .Where(k => k.Contains(pattern) ||
+                               (pattern.Contains("*") && IsPatternMatch(k, pattern)))
+                    .ToList();
+
+                foreach (var key in keysToRemove)
+                {
+                    await RemoveAsync(key);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to remove cache items by pattern: {Pattern}", pattern);
+            }
+        }
+
+        public async Task<List<string>> GetKeysAsync()
+        {
+            try
+            {
+                // Get all items and extract keys
+                var allItems = await _jsRuntime.InvokeAsync<object[]>("toxiqIndexedDb.getAllItems");
+                return allItems?.Select(item =>
+                {
+                    var jsonElement = (JsonElement)item;
+                    return jsonElement.GetProperty("key").GetString();
+                })
+                .Where(key => key != null)
+                .ToList() ?? new List<string>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to get cache keys");
+                return new List<string>();
+            }
+        }
+
+        public async Task CleanupExpiredAsync()
+        {
+            try
+            {
+                var allKeys = await GetKeysAsync();
+
+                foreach (var key in allKeys)
+                {
+                    // This will automatically remove expired items
+                    await GetAsync<object>(key);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to cleanup expired cache items");
+            }
+        }
+
+        public async Task CleanupOldAsync(int daysToKeep = 30)
+        {
+            try
+            {
+                await _jsRuntime.InvokeVoidAsync("toxiqIndexedDb.cleanupOldItems", daysToKeep);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to cleanup old cache items");
+            }
+        }
+
+        private static bool IsPatternMatch(string text, string pattern)
+        {
+            if (!pattern.Contains("*")) return text.Contains(pattern);
+
+            var regexPattern = "^" + pattern.Replace("*", ".*") + "$";
+            return System.Text.RegularExpressions.Regex.IsMatch(text, regexPattern);
+        }
+    }
+
+    /// <summary>
+    /// Cache entry wrapper for IndexedDB storage
+    /// </summary>
+    public class CacheEntry
+    {
+        public string Data { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public DateTime? ExpiresAt { get; set; }
     }
 }

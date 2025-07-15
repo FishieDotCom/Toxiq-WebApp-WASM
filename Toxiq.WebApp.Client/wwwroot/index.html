@@ -18,10 +18,10 @@
     <link href="css/reply-card.css" rel="stylesheet" />
     <script src="js/share-menu.js"></script>
     <script src="js/indexeddb-utils.js"></script>
+    <script src="js/InfiniteScroll.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.0/signalr.min.js"></script>
     <!-- Telegram WebApp Script - Load before our scripts -->
     <!--<script>eruda.init()</script>-->
-    <script src="js/chat-helpers.js"></script>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -107,25 +107,7 @@
     <script src="_framework/blazor.webassembly.js"></script>
 
     <!-- Telegram Authentication JavaScript -->
-    <script src="js/telegram-auth.js"></script>
-
-
-    <!--<script>
-        // Initialize chat features
-        window.addEventListener('load', () => {
-            // Set up service worker for offline chat functionality
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => console.log('SW registered'))
-                    .catch(error => console.log('SW registration failed'));
-            }
-
-            // Set up push notification support
-            if ('PushManager' in window) {
-                // Push notification setup will be handled by the chat service
-            }
-        });
-    </script>-->
+    <script src="js/telegram-auth.js"></script>                                  
 
     <script>
         // Platform detection for responsive behavior
@@ -151,7 +133,7 @@
         // Legacy token functions for compatibility
         window.setToken = function (token) {
             try {
-                localStorage.setItem('auth_token', token);
+                localStorage.setItem('token', token);
                 console.log('Token set in localStorage');
             } catch (error) {
                 console.error('Error setting token:', error);
@@ -160,7 +142,7 @@
 
         window.getToken = function () {
             try {
-                const token = localStorage.getItem('auth_token');
+                const token = localStorage.getItem('token');
                 return token || '';
             } catch (error) {
                 console.error('Error getting token:', error);

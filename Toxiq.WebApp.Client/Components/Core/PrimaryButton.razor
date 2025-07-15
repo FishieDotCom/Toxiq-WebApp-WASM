@@ -1,6 +1,4 @@
-﻿@* PrimaryButton.razor - Reusable primary button matching mobile app styling *@
-
-<button class="primary-button @(IsLoading ? "loading" : "")"
+﻿<button class="primary-button @(IsLoading ? "loading" : "")"
         disabled="@(IsLoading || Disabled)"
         @onclick="@HandleClick">
 

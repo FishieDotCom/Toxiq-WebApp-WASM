@@ -9,6 +9,7 @@
   </PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="BlazorInfiniteScroll" Version="1.0.2" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.17" />
 		<PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.17" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.6" />
@@ -40,5 +41,11 @@
 	<ItemGroup>
 	  <ProjectReference Include="..\..\Hydra.Agent.BlazorServer\Telegram-Apps.Blazor\Telegram-Apps.Blazor.csproj" />
 	  <ProjectReference Include="..\..\Toxiq.Mobile\Toxiq.Mobile.Dto\Toxiq.Mobile.Dto.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Domain\" />
+	  <Folder Include="Helper\" />
+	  <Folder Include="Services\Chat\" />
 	</ItemGroup>
 </Project>

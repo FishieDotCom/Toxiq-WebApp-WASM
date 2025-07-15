@@ -42,8 +42,8 @@ namespace Toxiq.WebApp.Client.Services.Api
 
             // Initialize service implementations
             AuthService = new AuthServiceImpl(this);
-            UserService = new UserService(this);
-            PostService = new PostServiceImpl(this);
+            UserService = new UserService(this, cache);
+            PostService = new PostService(this, cache);
             CommentService = new CommentService(this);
             NotesService = new NotesServiceImpl(this);
             ColorService = new ColorServiceImpl(this);
@@ -69,16 +69,6 @@ namespace Toxiq.WebApp.Client.Services.Api
             {
                 semaphore.Release();
             }
-        }
-
-        internal async ValueTask<T> GetCachedAsync<T>(string endpoint, TimeSpan maxAge)
-        {
-            var cacheKey = $"api_{endpoint}";
-
-            return await _cache.GetOrSetAsync(cacheKey, async () =>
-            {
-                return await GetAsync<T>(endpoint);
-            }, maxAge);
         }
 
         internal async ValueTask<T> PostAsync<T>(string endpoint, object data)
@@ -141,7 +131,7 @@ namespace Toxiq.WebApp.Client.Services.Api
 
         private async ValueTask EnsureAuthenticatedAsync()
         {
-            var token = await _tokenStorage.GetTokenAsync();
+            var token = await _tokenStorage.GetAccessTokenAsync();
             if (!string.IsNullOrEmpty(token))
             {
                 _httpClient.DefaultRequestHeaders.Authorization =
@@ -184,33 +174,6 @@ namespace Toxiq.WebApp.Client.Services.Api
 
     }
 
-    internal class PostServiceImpl : IPostService
-    {
-        private readonly OptimizedApiService _api;
-
-        public PostServiceImpl(OptimizedApiService api) => _api = api;
-
-        public ValueTask<SearchResultDto<BasePost>> GetFeed(GetPostDto filter) =>
-            _api.PostAsync<SearchResultDto<BasePost>>("Post/Feed", filter);
-
-        public ValueTask<BasePost> GetPost(Guid postId) =>
-            _api.GetCachedAsync<BasePost>($"Post/GetPost/{postId}", TimeSpan.FromMinutes(10));
-
-        public ValueTask<BasePost> GetPrompt(Guid postId) =>
-            _api.GetAsync<BasePost>($"Post/GetPrompt/{postId}");
-
-        public ValueTask<SearchResultDto<BasePost>> GetPostsByPrompt(Guid promptId, int page, int pageSize) =>
-            _api.GetAsync<SearchResultDto<BasePost>>($"Post/GetPostsByPrompt/{promptId}?page={page}&pageSize={pageSize}");
-
-        public async ValueTask Publish(BasePost post) =>
-          await _api.PostAsync<object>("Post/Publish", post);
-
-        public async ValueTask Upvote(Guid id) =>
-           await _api.GetRawAsync($"Post/Upvote/{id}");
-
-        public async ValueTask Downvote(Guid id) =>
-           await _api.GetRawAsync($"Post/Downvote/{id}");
-    }
 
 
     internal class ColorServiceImpl : IColorService
@@ -220,7 +183,7 @@ namespace Toxiq.WebApp.Client.Services.Api
         public ColorServiceImpl(OptimizedApiService api) => _api = api;
 
         public ValueTask<List<ColorListDto>> GetColors() =>
-            _api.GetCachedAsync<List<ColorListDto>>("Color/DebugColorList", TimeSpan.FromDays(1));
+            _api.GetAsync<List<ColorListDto>>("Color/DebugColorList");
 
         public async ValueTask SuggestColor(string hex) =>
            await _api.GetAsync<object>($"Color/SuggestColor/{hex}");
