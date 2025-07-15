@@ -11,7 +11,7 @@
     <ToxiqSidebar />
     <ToxiqRightSidebar /> 
     <main>   
-        <article class="content">
+        <article class="content" @onload="CheckAuthenticationState">
             @Body
         </article>
     </main>
@@ -35,6 +35,11 @@
             if (isAuthenticated)
             {
                 currentUser = await AuthService.GetCurrentUserAsync();
+            }
+            else
+            {
+                var result =  await AuthService.TryAutoLoginAsync();
+                currentUser = result.UserProfile;
             }
             StateHasChanged();
         }

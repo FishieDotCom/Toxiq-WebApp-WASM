@@ -14,13 +14,13 @@
 @using Toxiq.WebApp.Client.Services.Api
 @using Toxiq.WebApp.Client.Components
 @using System.Web
-@using Toxiq.WebApp.Client.Services.JavaScript
+@using TelegramApps.Blazor.Services
 @inject IFeedService FeedService
 @inject IApiService ApiService
 @inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
 @inject IAuthenticationService AuthService
-@inject ITelegramAuthJsInvoker TelegramAuth
+@inject ITelegramWebAppService TelegramService
+@inject IJSRuntime JSRuntime
 
 
 <PageTitle>@GetPageTitle()</PageTitle>
@@ -590,14 +590,11 @@
     {
         // Handle Telegram URL parameters
         HandleTelegramUrl();
-        await TelegramAuth.ShowBackButtonAsync();
+        await TelegramService.ShowBackButtonAsync();
 
         // Load post and comments
         await LoadPostAndComments();
-
-
         await LoadStickers();
-
     }
 
     private void ClearSelectedSticker()
@@ -865,7 +862,7 @@
         _ = Task.Run(async () =>
         {
             await Task.Delay(100);
-            await JSRuntime.InvokeVoidAsync("focusElement", ".comment-input");
+            await InvokeAsync(async () => await JSRuntime.InvokeVoidAsync("focusElement", ".comment-input"));
         });
     }
 

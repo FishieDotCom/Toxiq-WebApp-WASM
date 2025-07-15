@@ -1,24 +1,23 @@
 ﻿using Blazored.LocalStorage;
-using Microsoft.JSInterop;
-using System.Text.Json;
+using TelegramApps.Blazor.Services;
 using Toxiq.Mobile.Dto;
 
 namespace Toxiq.WebApp.Client.Services.Authentication
 {
     public class TelegramAuthProvider : IAuthenticationProvider
     {
-        private readonly IJSRuntime _jsRuntime;
+        private readonly ITelegramWebAppService _telegramService;
         private readonly ILocalStorageService _localStorage;
         private readonly IApiService _apiService;
         private readonly ILogger<TelegramAuthProvider> _logger;
 
         public TelegramAuthProvider(
-            IJSRuntime jsRuntime,
+            ITelegramWebAppService telegramService,
             ILocalStorageService localStorage,
             IApiService apiService,
             ILogger<TelegramAuthProvider> logger)
         {
-            _jsRuntime = jsRuntime;
+            _telegramService = telegramService;
             _localStorage = localStorage;
             _apiService = apiService;
             _logger = logger;
@@ -32,22 +31,16 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         {
             try
             {
-                // Check if we're in a Telegram WebApp context
-                var result = await _jsRuntime.InvokeAsync<JsonElement>("window.toxiqPlatform.detect");
-
-                var isTelegramWebApp = result.TryGetProperty("isTelegramMiniApp", out var isTelegramMiniAppProperty)
-                    && isTelegramMiniAppProperty.GetBoolean();
-
+                var isTelegramWebApp = await _telegramService.IsAvailableAsync();
                 if (!isTelegramWebApp)
                 {
                     _logger.LogDebug("Not in Telegram WebApp context");
                     return false;
                 }
 
-                // Check if Telegram WebApp is properly initialized
-                var hasInitData = await _jsRuntime.InvokeAsync<bool>("telegramAuthUtils.hasValidInitData");
+                var initData = await _telegramService.GetInitDataAsync();
+                var hasInitData = !string.IsNullOrWhiteSpace(initData?.Hash);
                 _logger.LogDebug("Telegram WebApp auto-login available: {HasInitData}", hasInitData);
-
                 return hasInitData;
             }
             catch (Exception ex)
@@ -63,16 +56,13 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             {
                 _logger.LogInformation("Attempting Telegram auto-login...");
 
-                // Get Telegram WebApp init data
-                var initData = await _jsRuntime.InvokeAsync<string>("telegramAuthUtils.getInitData");
-
+                var initData = await _telegramService.GetRawInitDataAsync();
                 if (string.IsNullOrWhiteSpace(initData))
                 {
                     _logger.LogWarning("No Telegram init data available");
                     return new AuthenticationResult(false, ErrorMessage: "Telegram authentication data not available");
                 }
 
-                // Attempt login with Telegram data (with retry logic like mobile app)
                 var maxRetries = 3;
                 var retryCount = 0;
 
@@ -82,22 +72,17 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                     {
                         var loginDto = new LoginDto
                         {
-                            PhoneNumber = "", // Empty like mobile app uses
+                            PhoneNumber = "",
                             OTP = initData
                         };
 
-                        var loginResult = await _apiService.AuthService.Login(loginDto);
+                        var loginResult = await _apiService.AuthService.TG_Login(loginDto);
 
                         if (!string.IsNullOrEmpty(loginResult.token) && loginResult.token != "NA")
                         {
-                            // Store token persistently
                             await _localStorage.SetItemAsStringAsync("token", loginResult.token);
-
-                            // Get user profile
                             var userProfile = await _apiService.UserService.GetMe();
-
                             _logger.LogInformation("Telegram auto-login successful for user: {Username}", userProfile?.UserName);
-
                             return new AuthenticationResult(
                                 IsSuccess: true,
                                 Token: loginResult.token,
@@ -116,8 +101,6 @@ namespace Toxiq.WebApp.Client.Services.Authentication
                     }
 
                     retryCount++;
-
-                    // Small delay before retry (like mobile app pattern)
                     if (retryCount < maxRetries)
                     {
                         await Task.Delay(1000);
@@ -139,7 +122,6 @@ namespace Toxiq.WebApp.Client.Services.Authentication
             {
                 if (string.IsNullOrWhiteSpace(token))
                     return false;
-
                 // Use the API service to validate the token
                 //var isValid = await _apiService.AuthService.ValidateTokenAsync(token);
                 return true;
@@ -155,12 +137,8 @@ namespace Toxiq.WebApp.Client.Services.Authentication
         {
             try
             {
-                // Clear stored token
                 await _localStorage.RemoveItemAsync("token");
-
-                // Close Telegram WebApp if needed
-                await _jsRuntime.InvokeVoidAsync("telegramAuthUtils.closeWebApp").ConfigureAwait(false);
-
+                await _telegramService.CloseAsync();
                 _logger.LogInformation("Telegram logout completed");
             }
             catch (Exception ex)

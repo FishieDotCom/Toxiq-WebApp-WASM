@@ -5,14 +5,13 @@
 @using Toxiq.WebApp.Client.Services.Authentication
 @using Toxiq.WebApp.Client.Services.Feed
 @using Toxiq.WebApp.Client.Components
-@using Toxiq.WebApp.Client.Services.JavaScript
+@using TelegramApps.Blazor.Services
 @inject IAuthenticationService AuthService
 @inject IFeedService FeedService
 @using Icons = Microsoft.FluentUI.AspNetCore.Components.Icons
 
 @inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
-@inject ITelegramAuthJsInvoker TelegramAuth
+@inject ITelegramWebAppService TelegramService
 
 
 <PageTitle>Home / Ashi</PageTitle>
@@ -403,7 +402,7 @@
 
         // Check initial authentication state
         await CheckAuthenticationState();
-        await TelegramAuth.HideBackButtonAsync();
+        await TelegramService.HideBackButtonAsync();
         if (isAuthenticated)
         {
             await LoadInitialFeed();
@@ -539,4 +538,4 @@
     {
         AuthService.AuthenticationStateChanged -= OnAuthenticationStateChanged;
     }
-}
+}}

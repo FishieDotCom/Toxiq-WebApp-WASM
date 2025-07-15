@@ -67,11 +67,11 @@ namespace Toxiq.WebApp.Client.Domain.Chat.Models
         // Computed properties for UI
         public string DisplayName => IsGroup
             ? ConversationName
-            : Participants.FirstOrDefault()?.Name ?? "Unknown User";
+            : Participants.LastOrDefault()?.Name ?? "Unknown User";
 
         public string UserAvatar => IsGroup
             ? GetGroupAvatar()
-            : GetUserInitials(Participants.FirstOrDefault()?.Name);
+            : GetUserInitials(Participants.LastOrDefault()?.Name);
 
         public string LastMessagePreview => LastMessage?.GetPreviewText() ?? "No messages yet";
 

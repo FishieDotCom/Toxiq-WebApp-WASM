@@ -179,6 +179,9 @@ namespace Toxiq.WebApp.Client.Services.Api
         public ValueTask<LoginResponse> Login(LoginDto loginDto) =>
             _api.PostAsync<LoginResponse>("Auth/DebugLogin", loginDto);
 
+        public ValueTask<LoginResponse> TG_Login(LoginDto loginDto) =>
+            _api.PostAsync<LoginResponse>("Auth/TG_WEB_LOGIN", loginDto);
+
     }
 
     internal class PostServiceImpl : IPostService

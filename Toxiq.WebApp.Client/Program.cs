@@ -8,9 +8,9 @@ using Toxiq.WebApp.Client.Extensions;
 using Toxiq.WebApp.Client.Services.Api;
 using Toxiq.WebApp.Client.Services.Authentication;
 using Toxiq.WebApp.Client.Services.Caching;
-using Toxiq.WebApp.Client.Services.JavaScript;
 using Toxiq.WebApp.Client.Services.LazyLoading;
 using Toxiq.WebApp.Client.Services.Platform;
+using TelegramApps.Blazor.Extensions;
 
 namespace Toxiq.WebApp.Client
 {
@@ -61,7 +61,6 @@ namespace Toxiq.WebApp.Client
             builder.Services.AddScoped<IAuthenticationProvider, TelegramAuthProvider>();
             builder.Services.AddScoped<IAuthenticationProvider, ManualAuthProvider>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
-            builder.Services.AddScoped<ITelegramAuthJsInvoker, TelegramAuthJsInvoker>();
 
             // Notification services - FIXED: Register in correct order
             builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -97,6 +96,9 @@ namespace Toxiq.WebApp.Client
 
             // FluentUI Components
             builder.Services.AddFluentUIComponents();
+
+            // Add Telegram WebApp services
+            builder.Services.AddTelegramWebApp();
 
             var host = builder.Build();
 

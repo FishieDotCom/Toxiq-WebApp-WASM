@@ -16,6 +16,7 @@ public interface IAuthService
 {
     ValueTask<bool> CheckHeartBeat();
     ValueTask<LoginResponse> Login(LoginDto loginDto);
+    ValueTask<LoginResponse> TG_Login(LoginDto loginDto);
 }
 
 public interface IPostService
