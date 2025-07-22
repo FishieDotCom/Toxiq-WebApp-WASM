@@ -1,0 +1,3 @@
+[submodule "libs/Telegram-Apps.Blazor"]
+	path = libs/Telegram-Apps.Blazor
+	url = https://github.com/WhoIsFishie/Telegram-Apps.Blazor.git
