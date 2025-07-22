@@ -2,10 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-	  <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
-	  <BlazorEnableCompression>true</BlazorEnableCompression>
+	<ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+	<BlazorEnableCompression>true</BlazorEnableCompression>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+	<BaseHref>/Toxiq-WebApp-WASM/</BaseHref>
   </PropertyGroup>
 
 	<ItemGroup>
@@ -39,7 +40,7 @@
 	</ItemGroup>-->
 
 	<ItemGroup>
-	  <ProjectReference Include="..\..\Hydra.Agent.BlazorServer\Telegram-Apps.Blazor\Telegram-Apps.Blazor.csproj" />
+	  <ProjectReference Include="libs\Telegram-Apps.Blazor\Telegram-Apps.Blazor.csproj" />
 	  <ProjectReference Include="..\..\Toxiq.Mobile\Toxiq.Mobile.Dto\Toxiq.Mobile.Dto.csproj" />
 	</ItemGroup>
 
